@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "79244775741",
+    "project_id": "mafiagame2-b7534",
+    "storage_bucket": "mafiagame2-b7534.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:79244775741:android:e3a248ca1751b94f2fb554",
+        "android_client_info": {
+          "package_name": "com.example.mafia"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBtEWILk_5casfrxI-2gtoJHxMRKI0oSok"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,44 @@
+[versions]
+agp = "8.6.0"
+firebaseBom = "34.7.0"
+junit = "4.13.2"
+junitVersion = "1.3.0"
+espressoCore = "3.7.0"
+appcompat = "1.6.1"           # ← ПОНИЗИЛИ версию
+material = "1.11.0"           # ← ПОНИЗИЛИ версию
+activity = "1.8.0"            # ← ПОНИЗИЛИ версию
+constraintlayout = "2.1.4"    # ← ПОНИЗИЛИ версию
+navigationFragment = "2.7.5"  # ← ПОНИЗИЛИ версию
+navigationUi = "2.7.5"        # ← ПОНИЗИЛИ версию
+googleGmsGoogleServices = "4.4.0"
+firebaseAuth = "22.3.0"       # ← АКТУАЛЬНАЯ версия
+firebaseFirestore = "24.10.0" # ← АКТУАЛЬНАЯ версия
+swiperefreshlayout = "1.1.0"
+glide = "4.16.0"
+# УБЕРИТЕ эти зависимости - они не нужны для начала:
+# credentials = "1.5.0"
+# credentialsPlayServicesAuth = "1.5.0"
+# googleid = "1.1.1"
+
+[libraries]
+firebase-analytics = { module = "com.google.firebase:firebase-analytics" }
+firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
+junit = { group = "junit", name = "junit", version.ref = "junit" }
+ext-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
+espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
+appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
+material = { group = "com.google.android.material", name = "material", version.ref = "material" }
+activity = { group = "androidx.activity", name = "activity", version.ref = "activity" }
+constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
+navigation-fragment = { group = "androidx.navigation", name = "navigation-fragment", version.ref = "navigationFragment" }
+navigation-ui = { group = "androidx.navigation", name = "navigation-ui", version.ref = "navigationUi" }
+firebase-auth = { group = "com.google.firebase", name = "firebase-auth", version.ref = "firebaseAuth" }
+firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore", version.ref = "firebaseFirestore" }
+swiperefreshlayout = { module = "androidx.swiperefreshlayout:swiperefreshlayout", version.ref = "swiperefreshlayout" }
+glide = { group = "com.github.bumptech.glide", name = "glide", version.ref = "glide" }
+glide-compiler = { group = "com.github.bumptech.glide", name = "compiler", version.ref = "glide" }
+firebase-storage = { module = "com.google.firebase:firebase-storage" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+google-gms-google-services = { id = "com.google.gms.google-services", version.ref = "googleGmsGoogleServices" }

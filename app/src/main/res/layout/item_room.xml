@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="8dp"
+    app:cardBackgroundColor="@color/card_background"
+    app:cardCornerRadius="8dp"
+    app:cardElevation="4dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- Верхняя строка: название и кнопка удаления -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="8dp">
+
+            <TextView
+                android:id="@+id/roomNameText"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Комната 1"
+                android:textSize="18sp"
+                android:textColor="@color/white"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/deleteButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="✕"
+                android:textColor="#450000"
+                android:visibility="gone"
+                android:padding="8dp"
+                android:minWidth="0dp"
+                android:minHeight="0dp" />
+
+        </LinearLayout>
+
+        <!-- Вторая строка: код и статус -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="8dp">
+
+            <TextView
+                android:id="@+id/roomCodeText"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="ABC123"
+                android:textSize="14sp"
+                android:textColor="@color/light_text"
+                android:background="@color/code_background"
+                android:padding="4dp"
+                android:drawablePadding="4dp" />
+
+            <TextView
+                android:id="@+id/roomStatusText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Ожидание игроков"
+                android:textSize="14sp"
+                android:textColor="@color/status_waiting"
+                android:drawablePadding="4dp" />
+        </LinearLayout>
+
+        <!-- Третья строка: создатель и игроки -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="8dp">
+
+            <TextView
+                android:id="@+id/roomCreatorText"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Создатель: Игрок123"
+                android:textSize="12sp"
+                android:textColor="@color/light_text"
+                android:drawablePadding="4dp" />
+
+            <TextView
+                android:id="@+id/roomPlayersText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="3/10"
+                android:textSize="14sp"
+                android:textColor="@color/light_text"
+                android:drawablePadding="4dp" />
+        </LinearLayout>
+
+        <!-- Кнопка присоединения -->
+        <Button
+            android:id="@+id/joinRoomButton"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:text="Присоединиться"
+            android:textSize="14sp"
+            android:background="@drawable/btn_mafia_final"
+            app:backgroundTint="@null"
+            android:layout_marginTop="12dp" />
+
+    </LinearLayout>
+
+</androidx.cardview.widget.CardView>

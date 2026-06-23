@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:background="@drawable/bg_gradient"
+    android:orientation="vertical">
+
+    <TextView
+        android:layout_width="400dp"
+        android:layout_height="wrap_content"
+        android:text="СОЗДАНИЕ КОМНАТЫ"
+        android:textSize="28sp"
+        android:textColor="@color/white"
+        android:layout_marginTop="50dp"
+        android:gravity="center"
+        android:textStyle="bold"/>
+
+    <TextView
+        android:layout_width="300dp"
+        android:layout_height="wrap_content"
+        android:text="Придумайте название комнаты"
+        android:textSize="18sp"
+        android:textColor="@color/light_text"
+        android:layout_marginLeft="50dp"
+        android:layout_marginTop="10dp"
+        android:textStyle="italic" />
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        app:boxStrokeColor="#B22222"
+        app:boxStrokeWidth="1dp"
+        app:boxStrokeWidthFocused="2dp"
+        app:hintTextColor="#C0C0C0"
+        app:endIconTint="#B22222"
+        app:boxBackgroundMode="outline"
+        android:layout_marginLeft="50dp"
+        android:layout_marginRight="30dp"
+        android:layout_marginTop="80dp"
+        app:errorTextColor="#FF6B6B">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/roomNameInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Название комнаты..."
+            android:textColor="#FFFFFF"
+            android:textColorHint="#C0C0C0"
+            android:textSize="16sp"
+            android:fontFamily="sans-serif"
+            android:padding="16dp" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <!-- Контейнер для переключателя приватности -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginLeft="50dp"
+        android:layout_marginTop="20dp"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/privacyLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Публичная комната"
+            android:textSize="16sp"
+            android:textColor="@color/light_text"
+            android:layout_marginRight="10dp"/>
+
+        <ImageButton
+            android:id="@+id/privacyToggle"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:scaleType="center"
+            android:src="@drawable/lock_open_ic"/>
+    </LinearLayout>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/createButton"
+        android:layout_width="300dp"
+        android:layout_height="wrap_content"
+        android:text="Создать комнату"
+        android:layout_gravity="center"
+        android:layout_marginTop="70dp"
+        android:background="@drawable/btn_mafia_final"
+        app:backgroundTint="@null"/>
+
+    <ProgressBar
+        android:id="@+id/progressBar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:layout_marginTop="24dp"
+        android:visibility="gone"/>
+
+</LinearLayout>

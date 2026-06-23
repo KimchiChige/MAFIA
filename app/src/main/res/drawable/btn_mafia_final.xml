@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Нажатое состояние -->
+    <item android:state_pressed="true">
+        <shape android:shape="rectangle">
+            <!-- Цвет кнопки при нажатии -->
+            <solid android:color="#660000"/>
+
+            <!-- Обводка -->
+            <stroke
+                android:width="2dp"
+                android:color="#B22222"/>
+
+            <corners
+                android:topLeftRadius="0dp"
+                android:topRightRadius="0dp"
+                android:bottomLeftRadius="20dp"
+                android:bottomRightRadius="20dp"/>
+
+            <padding
+                android:left="4dp"
+                android:top="4dp"
+                android:right="4dp"
+                android:bottom="6dp"/>
+        </shape>
+    </item>
+
+    <!-- Обычное состояние -->
+    <item>
+        <shape android:shape="rectangle">
+            <!-- Основной цвет -->
+            <solid android:color="#8B0000"/>
+
+            <!-- Обводка -->
+            <stroke
+                android:width="2dp"
+                android:color="#A52A2A"/>
+
+            <!-- ОСТРЫЕ углы -->
+            <corners
+                android:topLeftRadius="0dp"
+                android:topRightRadius="0dp"
+                android:bottomLeftRadius="20dp"
+                android:bottomRightRadius="20dp"/>
+
+            <!-- Внутренняя тень/отступ -->
+            <padding
+                android:left="4dp"
+                android:top="4dp"
+                android:right="4dp"
+                android:bottom="6dp"/>
+        </shape>
+    </item>
+
+</selector>

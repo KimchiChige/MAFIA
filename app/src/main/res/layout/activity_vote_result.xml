@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#0A0A0A">
+
+    <View
+        android:id="@+id/fogOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#CC000000"
+        android:alpha="0" />
+
+    <!-- Казнь -->
+    <LinearLayout
+        android:id="@+id/executionLayout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:padding="32dp"
+        android:visibility="invisible">
+
+        <TextView
+            android:id="@+id/executionIcon"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="⚖️"
+            android:textSize="80sp"
+            android:layout_marginBottom="24dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="ГОРОД ВЫНЕС ПРИГОВОР"
+            android:textSize="14sp"
+            android:textColor="#555555"
+            android:letterSpacing="0.2"
+            android:layout_marginBottom="28dp" />
+
+        <TextView
+            android:id="@+id/executedNameText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textSize="44sp"
+            android:textStyle="bold"
+            android:textColor="#FFFFFF"
+            android:gravity="center"
+            android:layout_marginBottom="16dp" />
+
+        <!-- Счётчик голосов -->
+        <TextView
+            android:id="@+id/voteCountText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textSize="16sp"
+            android:textColor="#555555"
+            android:gravity="center"
+            android:layout_marginBottom="20dp" />
+
+        <!-- Роль раскрывается после паузы -->
+        <TextView
+            android:id="@+id/executedRoleText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textSize="22sp"
+            android:textColor="#BB86FC"
+            android:gravity="center"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/executedSubtext"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="казнён городом"
+            android:textSize="14sp"
+            android:textColor="#444444"
+            android:gravity="center"
+            android:layout_marginTop="6dp"
+            android:visibility="gone" />
+
+    </LinearLayout>
+
+    <!-- Ничья / никого не казнили -->
+    <LinearLayout
+        android:id="@+id/tieLayout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:padding="32dp"
+        android:visibility="gone">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="🤝"
+            android:textSize="80sp"
+            android:layout_marginBottom="24dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="ГОРОД НЕ ДОГОВОРИЛСЯ"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:textColor="#FFFFFF"
+            android:gravity="center"
+            android:letterSpacing="0.08"
+            android:layout_marginBottom="16dp" />
+
+        <TextView
+            android:id="@+id/tieSubtitleText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Голоса разделились.\nНаступает следующая ночь."
+            android:textSize="16sp"
+            android:textColor="#555555"
+            android:gravity="center"
+            android:lineSpacingMultiplier="1.4" />
+
+    </LinearLayout>
+
+    <!-- Таймер и кнопка -->
+    <LinearLayout
+        android:id="@+id/continueLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:padding="24dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/continueTimerText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textSize="14sp"
+            android:textColor="#444444"
+            android:layout_marginBottom="12dp" />
+
+        <Button
+            android:id="@+id/continueButton"
+            android:layout_width="wrap_content"
+            android:layout_height="48dp"
+            android:paddingHorizontal="40dp"
+            android:text="ПРОДОЛЖИТЬ"
+            android:textSize="14sp"
+            android:letterSpacing="0.15"
+            android:backgroundTint="#1E1E1E"
+            android:textColor="#666666"
+            android:visibility="gone" />
+
+    </LinearLayout>
+
+</FrameLayout>

@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/bg_gradient">
+
+    <!-- Верхняя панель с информацией о комнате -->
+    <androidx.cardview.widget.CardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="12dp"
+        app:cardBackgroundColor="@color/card_background"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="4dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@color/black"
+            android:padding="16dp">
+
+            <TextView
+                android:id="@+id/roomNameText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Название комнаты"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:textColor="@android:color/white"/>
+
+            <TextView
+                android:id="@+id/roomCodeText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Код: 123456"
+                android:textSize="16sp"
+                android:textColor="@color/light_text"
+                android:layout_marginTop="4dp"/>
+
+            <TextView
+                android:id="@+id/playersCountText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Игроков: 1/10"
+                android:textSize="16sp"
+                android:textColor="@color/light_text"
+                android:layout_marginTop="4dp"/>
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <!-- Текстовая подсказка (ДОБАВЛЕНО) -->
+    <TextView
+        android:id="@+id/hintText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Нажми на себя и приготовься выжить."
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:textColor="@color/white"
+        android:layout_gravity="center"
+        android:layout_marginLeft="16dp"
+        android:layout_marginBottom="8dp"
+        android:layout_marginTop="4dp"/>
+
+    <!-- Список игроков -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Игроки в комнате:"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="@android:color/black"
+        android:layout_marginLeft="16dp"
+        android:layout_marginBottom="8dp"/>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/playersRecyclerView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginLeft="12dp"
+        android:layout_marginRight="12dp"/>
+
+    <!-- Кнопки действий -->
+    <LinearLayout
+        android:id="@+id/buttonContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:gravity="center_vertical"
+        android:weightSum="2">
+
+        <!-- Кнопка начать игру (только для хоста) -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/startGameButton"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1.6"
+            android:text="НАЧАТЬ"
+            app:backgroundTint="@null"
+            android:background="@drawable/btn_mafia_final"
+            android:textColor="@color/black"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:visibility="gone"
+            android:layout_marginEnd="8dp"/>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/leaveRoomButton"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="2.0"
+            android:text="✕ ПОКИНУТЬ"
+            app:backgroundTint="@null"
+            android:background="@drawable/btn_leave_room"
+            android:textColor="#FF4444"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:visibility="visible"/>
+    </LinearLayout>
+
+    <!-- Прогресс бар -->
+    <ProgressBar
+        android:id="@+id/progressBar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:visibility="gone"/>
+</LinearLayout>

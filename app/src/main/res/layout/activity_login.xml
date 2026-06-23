@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="24dp"
+    android:background="@drawable/bg_gradient"
+    tools:context=".LoginActivity">
+
+    <ImageView
+        android:layout_width="350dp"
+        android:layout_height="200dp"
+        android:src="@drawable/mafia2"
+        android:layout_marginTop="10dp"
+        android:layout_gravity="center" />
+
+    <FrameLayout
+        android:id="@+id/titleBloodContainer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:layout_marginBottom="5dp">
+
+        <TextView
+            android:id="@+id/mafiaTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="MAFIA"
+            android:layout_gravity="center"
+            android:textSize="36sp"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold"
+            android:fontFamily="sans-serif-condensed"
+            android:letterSpacing="0.1"
+            android:shadowColor="#8B0000"
+            android:shadowRadius="4"
+            android:shadowDx="2"
+            android:shadowDy="2"/>
+
+        <com.example.mafia.BloodDripView
+            android:id="@+id/bloodDripTitle"
+            android:layout_width="match_parent"
+            android:layout_height="80dp"
+            android:layout_gravity="bottom"
+            android:clickable="false"
+            android:focusable="false"/>
+
+    </FrameLayout>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Попробуй остаться в живых"
+        android:layout_gravity="center"
+        android:textSize="14sp"
+        android:fontFamily="sans-serif-light"
+        android:layout_marginBottom="40dp"/>
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/nicknameLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        app:boxStrokeColor="#B22222"
+        app:boxStrokeWidth="1dp"
+        app:boxStrokeWidthFocused="2dp"
+        app:hintTextColor="#C0C0C0"
+        app:boxBackgroundMode="outline"
+        app:errorTextColor="#FF6B6B"
+        android:visibility="gone">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/nicknameEditText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Игровой никнейм"
+            android:inputType="text"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#C0C0C0"
+            android:textSize="16sp"
+            android:fontFamily="sans-serif"
+            android:padding="16dp" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        app:boxStrokeColor="#B22222"
+        app:boxStrokeWidth="1dp"
+        app:boxStrokeWidthFocused="2dp"
+        app:hintTextColor="#C0C0C0"
+        app:endIconTint="#B22222"
+        app:boxBackgroundMode="outline"
+        app:errorTextColor="#FF6B6B">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/emailEditText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Email"
+            android:inputType="textEmailAddress"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#C0C0C0"
+            android:textSize="16sp"
+            android:fontFamily="sans-serif"
+            android:padding="16dp" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="32dp"
+        app:boxStrokeColor="#B22222"
+        app:boxStrokeWidth="1dp"
+        app:boxStrokeWidthFocused="2dp"
+        app:hintTextColor="#C0C0C0"
+        app:endIconMode="password_toggle"
+        app:endIconTint="#B22222"
+        app:boxBackgroundMode="outline"
+        app:errorTextColor="#FF6B6B">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/passwordEditText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Пароль"
+            android:inputType="textPassword"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#C0C0C0"
+            android:textSize="16sp"
+            android:fontFamily="sans-serif"
+            android:padding="16dp" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/loginButton"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:text="ВОЙТИ"
+        android:textSize="14sp"
+        android:textColor="#FFFFFF"
+        android:textAllCaps="true"
+        android:letterSpacing="0.1"
+        android:fontFamily="sans-serif-black"
+        android:background="@drawable/btn_mafia_final"
+        app:backgroundTint="@null"
+        android:layout_marginBottom="16dp"
+        android:elevation="8dp"
+        android:stateListAnimator="@null"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp"
+        style="@style/Widget.MaterialComponents.Button.OutlinedButton"/>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/registerButton"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:text="СОЗДАТЬ АККАУНТ"
+        android:textSize="18sp"
+        android:textColor="#FFFFFF"
+        android:textAllCaps="true"
+        android:letterSpacing="0.05"
+        android:fontFamily="sans-serif-medium"
+        android:backgroundTint="#2D2D2D"
+        android:visibility="gone"
+        android:layout_marginBottom="12dp"
+        android:elevation="2dp"
+        android:stateListAnimator="@null" />
+
+    <TextView
+        android:id="@+id/switchToRegister"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Нет аккаунта? Зарегистрироваться"
+        android:textColor="#FF4444"
+        android:textSize="15sp"
+        android:textStyle="bold"
+        android:fontFamily="sans-serif"
+        android:layout_gravity="center"
+        android:layout_marginTop="12dp"
+        android:visibility="visible"
+        android:clickable="true"
+        android:focusable="true"
+        android:padding="12dp"/>
+
+    <ProgressBar
+        android:id="@+id/progressBar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:layout_marginTop="20dp"
+        android:visibility="gone"
+        android:indeterminateTint="#8B0000" />
+
+</LinearLayout>

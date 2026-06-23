@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Основные цвета -->
+    <color name="purple_500">#673AB7</color>
+    <color name="purple_700">#512DA8</color>
+    <color name="teal_700">#00796B</color>
+    <color name="white">#FFFFFF</color>
+    <color name="black">#FF000000</color>
+    <color name="red">#f70f0f</color>
+
+    <!-- Новые цвета для лобби -->
+    <color name="dark_background">#121212</color>
+    <color name="card_background">#1E1E1E</color>
+    <color name="bottom_panel">#2D2D2D</color>
+    <color name="light_text">#B0B0B0</color>
+
+    <!-- Цвета кнопок -->
+    <color name="button_primary">#BB86FC</color>
+    <color name="button_secondary">#03DAC5</color>
+
+    <!-- Цвета статусов -->
+    <color name="status_waiting">#FF9800</color>
+    <color name="status_playing">#4CAF50</color>
+    <color name="status_full">#F44336</color>
+
+    <!-- Дополнительные -->
+    <color name="code_background">#333333</color>
+    <color name="selected_player">#2A2A2A</color>
+    <color name="icon_tint">#E0E0E0</color>
+</resources>
