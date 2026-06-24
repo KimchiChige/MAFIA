@@ -70,78 +70,76 @@ public class GameEndActivity extends AppCompatActivity {
      * Читает документ игры, находит всех участников и обновляет:
      *  - totalGames  (+1 всем)
      *  - wins        (+1 победившей команде)
-     *  - level       = 1 + floor(totalGames / 5)  — новый уровень каждые 5 игр
+     *  - level       = 1 + floor(totalGames / 5)
+     *
+     * Защита от двойного начисления: атомарно выставляем флаг statsUpdated = true
+     * через транзакцию. Если флаг уже стоит — другой клиент уже обновил, выходим.
      */
     @SuppressWarnings("unchecked")
     private void updatePlayerStats(String roomId, String winner) {
         FirebaseFirestore db = FirebaseFirestore.getInstance();
+        com.google.firebase.firestore.DocumentReference gameRef =
+                db.collection("games").document(roomId);
 
-        db.collection("games").document(roomId).get()
-                .addOnSuccessListener(gameSnap -> {
-                    if (!gameSnap.exists()) return;
-                    Map<String, Object> data = gameSnap.getData();
-                    if (data == null) return;
-
-                    Object playersObj = data.get("players");
-                    if (!(playersObj instanceof Map)) return;
-                    Map<String, Object> players = (Map<String, Object>) playersObj;
-
-                    // Собираем uid → role для всех игроков
-                    Map<String, String> roles = new HashMap<>();
-                    for (Map.Entry<String, Object> entry : players.entrySet()) {
-                        if (entry.getValue() instanceof Map) {
-                            Map<String, Object> p = (Map<String, Object>) entry.getValue();
-                            Object roleObj = p.get("role");
-                            if (roleObj != null) {
-                                roles.put(entry.getKey(), roleObj.toString().trim().toLowerCase());
-                            }
-                        }
-                    }
-
-                    if (roles.isEmpty()) return;
-
-                    // Читаем текущую статистику каждого игрока и пишем батчем
-                    db.collection("users")
-                            .whereIn(com.google.firebase.firestore.FieldPath.documentId(),
-                                    new java.util.ArrayList<>(roles.keySet()))
-                            .get()
-                            .addOnSuccessListener(usersSnap -> {
-                                WriteBatch batch = db.batch();
-
-                                for (DocumentSnapshot userDoc : usersSnap.getDocuments()) {
-                                    String uid  = userDoc.getId();
-                                    String role = roles.getOrDefault(uid, "");
-
-                                    long totalGames = userDoc.getLong("totalGames") != null
-                                            ? userDoc.getLong("totalGames") : 0L;
-                                    long wins = userDoc.getLong("wins") != null
-                                            ? userDoc.getLong("wins") : 0L;
-
-                                    totalGames += 1;
-                                    boolean isWinner = didWin(role, winner);
-                                    if (isWinner) wins += 1;
-
-                                    // Уровень: 1 + 1 за каждые 5 игр
-                                    long level = 1 + (totalGames / 5);
-
-                                    Map<String, Object> updates = new HashMap<>();
-                                    updates.put("totalGames", totalGames);
-                                    updates.put("wins", wins);
-                                    updates.put("level", level);
-
-                                    batch.update(userDoc.getReference(), updates);
-                                    Log.d(TAG, "Статистика " + uid + ": игр=" + totalGames
-                                            + " побед=" + wins + " уровень=" + level);
-                                }
-
-                                batch.commit()
-                                        .addOnSuccessListener(v -> Log.d(TAG, "Статистика обновлена"))
-                                        .addOnFailureListener(e -> Log.e(TAG, "Ошибка обновления статистики", e));
-                            })
-                            .addOnFailureListener(e -> Log.e(TAG, "Ошибка чтения пользователей", e));
-                })
-                .addOnFailureListener(e -> Log.e(TAG, "Ошибка чтения игры", e));
+        db.runTransaction(transaction -> {
+            com.google.firebase.firestore.DocumentSnapshot snap = transaction.get(gameRef);
+            if (!snap.exists()) return null;
+            if (Boolean.TRUE.equals(snap.get("statsUpdated"))) return null;
+            transaction.update(gameRef, "statsUpdated", true);
+            return snap.getData();
+        }).addOnSuccessListener(data -> {
+            if (data == null) {
+                Log.d(TAG, "Статистика уже была обновлена другим клиентом, пропускаем");
+                return;
+            }
+            doUpdateStats(db, (Map<String, Object>) data, winner);
+        }).addOnFailureListener(e -> Log.e(TAG, "Ошибка транзакции statsUpdated", e));
     }
+
+    @SuppressWarnings("unchecked")
+    private void doUpdateStats(FirebaseFirestore db, Map<String, Object> gameData, String winner) {
+        Object playersObj = gameData.get("players");
+        if (!(playersObj instanceof Map)) return;
+        Map<String, Object> players = (Map<String, Object>) playersObj;
+
+        Map<String, String> roles = new HashMap<>();
+        for (Map.Entry<String, Object> entry : players.entrySet()) {
+            if (entry.getValue() instanceof Map) {
+                Map<String, Object> p = (Map<String, Object>) entry.getValue();
+                Object roleObj = p.get("role");
+                if (roleObj != null) roles.put(entry.getKey(), roleObj.toString().trim().toLowerCase());
+            }
+        }
+        if (roles.isEmpty()) return;
+
+        db.collection("users")
+                .whereIn(com.google.firebase.firestore.FieldPath.documentId(),
+                        new java.util.ArrayList<>(roles.keySet()))
+                .get()
+                .addOnSuccessListener(usersSnap -> {
+                    com.google.firebase.firestore.WriteBatch batch = db.batch();
+                    for (com.google.firebase.firestore.DocumentSnapshot userDoc : usersSnap.getDocuments()) {
+                        String uid  = userDoc.getId();
+                        String role = roles.getOrDefault(uid, "");
+                        long totalGames = userDoc.getLong("totalGames") != null ? userDoc.getLong("totalGames") : 0L;
+                        long wins       = userDoc.getLong("wins")       != null ? userDoc.getLong("wins")       : 0L;
+                        totalGames += 1;
+                        if (didWin(role, winner)) wins += 1;
+                        long level = 1 + (totalGames / 5);
+                        Map<String, Object> upd = new HashMap<>();
+                        upd.put("totalGames", totalGames);
+                        upd.put("wins", wins);
+                        upd.put("level", level);
+                        batch.update(userDoc.getReference(), upd);
+                        Log.d(TAG, "Статистика " + uid + ": игр=" + totalGames + " побед=" + wins);
+                    }
+                    batch.commit()
+                            .addOnSuccessListener(v -> Log.d(TAG, "Статистика обновлена"))
+                            .addOnFailureListener(e -> Log.e(TAG, "Ошибка batch", e));
+                })
+                .addOnFailureListener(e -> Log.e(TAG, "Ошибка чтения пользователей", e));
+    }
+
 
     /** Возвращает true если роль игрока входит в победившую команду */
     private boolean didWin(String role, String winner) {

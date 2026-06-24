@@ -15,19 +15,28 @@ import java.util.List;
 public class RoomAdapter extends RecyclerView.Adapter<RoomAdapter.RoomViewHolder> {
 
     private List<Room> rooms;
-    private OnRoomClickListener onRoomClickListener;
+    private OnJoinClickListener onJoinClickListener;
     private OnRoomDeleteClickListener onRoomDeleteClickListener;
 
-    public interface OnRoomClickListener {
-        void onRoomClick(Room room);
+    public interface OnJoinClickListener {
+        void onJoinClick(Room room);
     }
 
     public interface OnRoomDeleteClickListener {
         void onRoomDeleteClick(Room room);
     }
 
+    // Оставляем для обратной совместимости (больше не используется для клика по карточке)
+    public interface OnRoomClickListener {
+        void onRoomClick(Room room);
+    }
+
     public void setOnRoomClickListener(OnRoomClickListener listener) {
-        this.onRoomClickListener = listener;
+        // теперь клик по карточке ничего не делает — только кнопка "Присоединиться"
+    }
+
+    public void setOnJoinClickListener(OnJoinClickListener listener) {
+        this.onJoinClickListener = listener;
     }
 
     public void setOnRoomDeleteClickListener(OnRoomDeleteClickListener listener) {
@@ -52,9 +61,9 @@ public class RoomAdapter extends RecyclerView.Adapter<RoomAdapter.RoomViewHolder
         Room room = rooms.get(position);
         holder.bind(room);
 
-        holder.itemView.setOnClickListener(v -> {
-            if (onRoomClickListener != null) {
-                onRoomClickListener.onRoomClick(room);
+        holder.joinButton.setOnClickListener(v -> {
+            if (onJoinClickListener != null) {
+                onJoinClickListener.onJoinClick(room);
             }
         });
 
@@ -75,32 +84,48 @@ public class RoomAdapter extends RecyclerView.Adapter<RoomAdapter.RoomViewHolder
         TextView creatorNameText;
         TextView playersText;
         TextView codeText;
+        TextView statusText;
         TextView deleteButton;
+        TextView lockIcon;
+        Button joinButton;
 
         public RoomViewHolder(@NonNull View itemView) {
             super(itemView);
-            roomNameText = itemView.findViewById(R.id.roomNameText);
+            roomNameText    = itemView.findViewById(R.id.roomNameText);
             creatorNameText = itemView.findViewById(R.id.roomCreatorText);
-            playersText = itemView.findViewById(R.id.roomPlayersText);
-            codeText = itemView.findViewById(R.id.roomCodeText);
-            deleteButton = itemView.findViewById(R.id.deleteButton);
+            playersText     = itemView.findViewById(R.id.roomPlayersText);
+            codeText        = itemView.findViewById(R.id.roomCodeText);
+            statusText      = itemView.findViewById(R.id.roomStatusText);
+            deleteButton    = itemView.findViewById(R.id.deleteButton);
+            lockIcon        = itemView.findViewById(R.id.lockIcon);
+            joinButton      = itemView.findViewById(R.id.joinRoomButton);
         }
 
         public void bind(Room room) {
             roomNameText.setText(room.getName());
             creatorNameText.setText("Создатель: " + room.getCreatorName());
             playersText.setText("Игроков: " + room.getCurrentPlayers() + "/" + room.getMaxPlayers());
-            codeText.setText("Код: " + room.getCode());
 
-            // Показываем кнопку удаления только для создателя комнаты
-            String currentUserId = FirebaseAuth.getInstance().getCurrentUser() != null ?
-                    FirebaseAuth.getInstance().getCurrentUser().getUid() : "";
-
-            if (room.getCreatorId() != null && room.getCreatorId().equals(currentUserId)) {
-                deleteButton.setVisibility(View.VISIBLE);
+            // Приватная комната — показываем замок, код не светим
+            if (room.isPrivate()) {
+                lockIcon.setVisibility(View.VISIBLE);
+                codeText.setText("Закрытая комната");
             } else {
-                deleteButton.setVisibility(View.GONE);
+                lockIcon.setVisibility(View.GONE);
+                codeText.setText("Код: " + room.getCode());
             }
+
+            if (statusText != null) {
+                boolean full = room.getCurrentPlayers() >= room.getMaxPlayers();
+                statusText.setText(full ? "Заполнена" : "Ожидание игроков");
+            }
+
+            // Кнопку удаления показываем только создателю
+            String uid = FirebaseAuth.getInstance().getCurrentUser() != null
+                    ? FirebaseAuth.getInstance().getCurrentUser().getUid() : "";
+            deleteButton.setVisibility(
+                    room.getCreatorId() != null && room.getCreatorId().equals(uid)
+                            ? View.VISIBLE : View.GONE);
         }
     }
 }

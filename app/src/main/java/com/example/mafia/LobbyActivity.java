@@ -128,7 +128,8 @@ public class LobbyActivity extends AppCompatActivity {
         roomsRecyclerView.setLayoutManager(new LinearLayoutManager(this));
         roomsRecyclerView.setAdapter(roomAdapter);
 
-        roomAdapter.setOnRoomClickListener(room -> joinRoom(room.getId()));
+        // Клик по кнопке "Присоединиться" в карточке — с проверкой на приватность
+        roomAdapter.setOnJoinClickListener(room -> handleRoomJoin(room));
         roomAdapter.setOnRoomDeleteClickListener(room -> deleteRoom(room.getId(), room.getCreatorId()));
     }
 
@@ -260,13 +261,9 @@ public class LobbyActivity extends AppCompatActivity {
         joinRoomButton.setOnClickListener(v -> joinRoomWithCode());
         logoutButton.setOnClickListener(v -> logoutUser());
 
-        // Аватар и кнопка профиля открывают экран профиля
+        // Аватар открывает экран профиля
         if (userAvatarImage != null) {
             userAvatarImage.setOnClickListener(v -> openProfile());
-        }
-        TextView profileBtn = findViewById(R.id.profileButton);
-        if (profileBtn != null) {
-            profileBtn.setOnClickListener(v -> openProfile());
         }
     }
 
@@ -431,8 +428,112 @@ public class LobbyActivity extends AppCompatActivity {
         }
     }
 
+    /** Нижняя кнопка "Присоединиться" — стилизованный диалог ввода кода */
     private void joinRoomWithCode() {
-        Toast.makeText(this, "Присоединение к комнате...", Toast.LENGTH_SHORT).show();
+        showJoinCodeDialog("ВОЙТИ В КОМНАТУ", "Введите код публичной или приватной комнаты", null, null);
+    }
+
+    /**
+     * Универсальный стилизованный диалог ввода кода.
+     * @param title      Заголовок диалога
+     * @param subtitle   Подсказка под заголовком
+     * @param expectedCode  Если != null — проверяем введённый код против этого значения (для приватных комнат)
+     * @param roomId     Если != null — joinRoom(roomId) при совпадении кода; иначе findAndJoinByCode(code)
+     */
+    private void showJoinCodeDialog(String title, String subtitle, String expectedCode, String roomId) {
+        android.view.View dialogView = android.view.LayoutInflater.from(this)
+                .inflate(R.layout.dialog_join_room, null);
+
+        android.widget.TextView titleView    = dialogView.findViewById(R.id.dialogTitlee);
+        android.widget.TextView subtitleView = dialogView.findViewById(R.id.dialogSubtitlee);
+        com.google.android.material.textfield.TextInputEditText codeInput = dialogView.findViewById(R.id.codeInputt);
+        com.google.android.material.button.MaterialButton confirmBtn = dialogView.findViewById(R.id.confirmButtonn);
+        com.google.android.material.button.MaterialButton cancelBtn  = dialogView.findViewById(R.id.cancelButtonn);
+
+        titleView.setText(title);
+        subtitleView.setText(subtitle);
+
+        // Диалог с прозрачным фоном, чтобы наш кастомный background отображался без белой рамки
+        AlertDialog dialog = new AlertDialog.Builder(this, R.style.MafiaDialog)
+                .setView(dialogView)
+                .create();
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+        }
+
+        cancelBtn.setOnClickListener(v -> dialog.dismiss());
+
+        confirmBtn.setOnClickListener(v -> {
+            String code = codeInput.getText() != null
+                    ? codeInput.getText().toString().trim().toUpperCase() : "";
+            if (code.isEmpty()) {
+                codeInput.setError("Введите код");
+                return;
+            }
+            dialog.dismiss();
+
+            if (expectedCode != null) {
+                // Режим проверки кода приватной комнаты
+                if (code.equals(expectedCode)) {
+                    joinRoom(roomId);
+                } else {
+                    Toast.makeText(this, "❌ Неверный код доступа", Toast.LENGTH_SHORT).show();
+                }
+            } else {
+                // Режим поиска комнаты по коду
+                findAndJoinByCode(code);
+            }
+        });
+
+        // Автофокус на поле ввода
+        dialog.setOnShowListener(d -> {
+            codeInput.requestFocus();
+            android.view.inputmethod.InputMethodManager imm =
+                    (android.view.inputmethod.InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+            if (imm != null) imm.showSoftInput(codeInput, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
+        });
+
+        dialog.show();
+    }
+
+    /** Ищет комнату по коду в Firestore и присоединяется */
+    private void findAndJoinByCode(String code) {
+        showLoading(true);
+        db.collection("rooms")
+                .whereEqualTo("code", code)
+                .whereEqualTo("status", "waiting")
+                .limit(1)
+                .get()
+                .addOnSuccessListener(querySnapshot -> {
+                    showLoading(false);
+                    if (querySnapshot.isEmpty()) {
+                        Toast.makeText(this, "Комната с кодом" + code + "не найдена", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    com.google.firebase.firestore.DocumentSnapshot doc = querySnapshot.getDocuments().get(0);
+                    com.example.mafia.classes.Room room = doc.toObject(com.example.mafia.classes.Room.class);
+                    if (room == null) return;
+                    room.setId(doc.getId());
+                    joinRoom(room.getId());
+                })
+                .addOnFailureListener(e -> {
+                    showLoading(false);
+                    Toast.makeText(this, "Ошибка поиска: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
+    }
+
+    /** Вступление в комнату из карточки — с проверкой на приватность */
+    private void handleRoomJoin(com.example.mafia.classes.Room room) {
+        if (room.isPrivate()) {
+            showJoinCodeDialog(
+                    "🔒 ЗАКРЫТАЯ КОМНАТА",
+                    "Код доступа для «" + room.getName() + "»",
+                    room.getCode(),
+                    room.getId()
+            );
+        } else {
+            joinRoom(room.getId());
+        }
     }
 
     private void logoutUser() {

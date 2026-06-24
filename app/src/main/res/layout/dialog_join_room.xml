@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/bg_dialog"
+    android:padding="24dp">
+
+    <!-- Иконка замка -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:text="🔐"
+        android:textSize="48sp"
+        android:layout_marginBottom="8dp"/>
+
+    <!-- Заголовок -->
+    <TextView
+        android:id="@+id/dialogTitlee"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:text="ВВЕДИТЕ КОД"
+        android:textSize="20sp"
+        android:textColor="#FFFFFF"
+        android:textStyle="bold"
+        android:fontFamily="sans-serif-condensed"
+        android:letterSpacing="0.15"
+        android:layout_marginBottom="4dp"/>
+
+    <!-- Подзаголовок -->
+    <TextView
+        android:id="@+id/dialogSubtitlee"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:text="Код доступа к комнате"
+        android:textSize="13sp"
+        android:textColor="#999999"
+        android:layout_marginBottom="24dp"/>
+
+    <!-- Поле ввода кода — крупное, по центру -->
+    <com.google.android.material.textfield.TextInputLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="24dp"
+        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+        app:boxStrokeColor="#8B0000"
+        app:boxStrokeWidth="2dp"
+        app:hintTextColor="#8B0000">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/codeInputt"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="XXXXXX"
+            android:inputType="textCapCharacters"
+            android:textSize="28sp"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold"
+            android:letterSpacing="0.3"
+            android:gravity="center"
+            android:maxLength="8"
+            android:fontFamily="monospace"
+            android:textColorHint="#444444"/>
+
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <!-- Кнопки -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/cancelButtonn"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:text="ОТМЕНА"
+            android:textColor="#999999"
+            android:textSize="13sp"
+            android:layout_marginEnd="8dp"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            app:strokeColor="#333333"/>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/confirmButtonn"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:text="ВОЙТИ"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            app:backgroundTint="#8B0000"
+            app:cornerRadius="8dp"/>
+
+    </LinearLayout>
+
+</LinearLayout>
