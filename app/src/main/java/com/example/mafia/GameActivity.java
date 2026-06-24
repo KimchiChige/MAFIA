@@ -17,7 +17,9 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import com.example.mafia.Adapters.ChatAdapter;
 import com.example.mafia.Adapters.PlayerActionAdapter;
+import com.example.mafia.classes.ChatMessage;
 import com.example.mafia.classes.Player;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -74,6 +76,16 @@ public class GameActivity extends AppCompatActivity {
     // ── Адаптер ───────────────────────────────────────────────────
     private PlayerActionAdapter playersAdapter;
     private List<Player> playersList = new ArrayList<>();
+
+    // ── Чат ──────────────────────────────────────────────────────
+    private android.widget.LinearLayout chatPanel;
+    private com.google.android.material.floatingactionbutton.FloatingActionButton openChatButton;
+    private androidx.recyclerview.widget.RecyclerView chatRecyclerView;
+    private com.google.android.material.textfield.TextInputEditText chatInput;
+    private ChatAdapter chatAdapter;
+    private com.google.firebase.firestore.ListenerRegistration chatListener;
+    private String myName = "Игрок";
+    private String myPhotoBase64 = null;
 
     // ── Действие ──────────────────────────────────────────────────
     private String selectedTarget = null;
@@ -140,6 +152,39 @@ public class GameActivity extends AppCompatActivity {
 
         actionButton.setOnClickListener(v -> performAction());
         startVotingButton.setOnClickListener(v -> startVotingButtonClick());
+
+        // ── Чат ──────────────────────────────────────────────────
+        chatPanel = findViewById(R.id.chatPanel);
+        openChatButton = findViewById(R.id.openChatButton);
+        chatRecyclerView = findViewById(R.id.chatRecyclerView);
+        chatInput = findViewById(R.id.chatInput);
+
+        chatAdapter = new ChatAdapter(currentUser.getUid());
+        chatRecyclerView.setLayoutManager(new LinearLayoutManager(this));
+        chatRecyclerView.setAdapter(chatAdapter);
+
+        openChatButton.setOnClickListener(v -> {
+            chatPanel.setVisibility(View.VISIBLE);
+            openChatButton.setVisibility(View.GONE);
+            chatRecyclerView.scrollToPosition(chatAdapter.getItemCount() - 1);
+        });
+
+        findViewById(R.id.chatCloseButton).setOnClickListener(v -> {
+            chatPanel.setVisibility(View.GONE);
+            openChatButton.setVisibility(View.VISIBLE);
+        });
+
+        findViewById(R.id.chatSendButton).setOnClickListener(v -> sendChatMessage());
+
+        // Загружаем имя и фото текущего игрока для чата
+        db.collection("users").document(currentUser.getUid()).get()
+                .addOnSuccessListener(doc -> {
+                    if (doc.exists()) {
+                        String nick = doc.getString("nickname");
+                        myName = (nick != null && !nick.isEmpty()) ? nick : "Игрок";
+                        myPhotoBase64 = doc.getString("photoBase64");
+                    }
+                });
     }
 
     private void startVotingButtonClick() {
@@ -268,6 +313,10 @@ public class GameActivity extends AppCompatActivity {
         selectedTarget = null;
         votingTimerStarted = false;
         dayTimerStarted = false;
+        // Скрываем чат при смене фазы
+        chatPanel.setVisibility(View.GONE);
+        openChatButton.setVisibility(View.GONE);
+        stopChatListener();
         if (playersAdapter != null) {
             playersAdapter.setSelectedPlayer(null);
             playersAdapter.setVoteCounts(new HashMap<>());
@@ -391,9 +440,12 @@ public class GameActivity extends AppCompatActivity {
         if (isAlive) {
             infoText.setText("💬 Обсудите ситуацию. Голосование начнётся автоматически.");
         }
-        // (сообщение для мёртвых уже выставлено в updateGameUI())
 
         startVotingButton.setVisibility(isHost ? View.VISIBLE : View.GONE);
+
+        // Показываем кнопку открытия чата и запускаем слушатель
+        openChatButton.setVisibility(View.VISIBLE);
+        startChatListener();
     }
 
     private void updateDayVotingUI(Map<String, Object> dayVotes) {
@@ -680,6 +732,58 @@ public class GameActivity extends AppCompatActivity {
     }
 
     // ─────────────────────────────────────────────────────────────
+    // Чат
+    // ─────────────────────────────────────────────────────────────
+
+    private void startChatListener() {
+        if (chatListener != null) return; // уже запущен
+        chatAdapter.clear();
+
+        chatListener = db.collection("games").document(roomId)
+                .collection("chat")
+                .whereEqualTo("dayNumber", currentDay)
+                .orderBy("timestamp")
+                .addSnapshotListener((snapshots, error) -> {
+                    if (error != null || snapshots == null) return;
+
+                    List<ChatMessage> msgs = new ArrayList<>();
+                    for (com.google.firebase.firestore.DocumentSnapshot doc : snapshots.getDocuments()) {
+                        ChatMessage msg = doc.toObject(ChatMessage.class);
+                        if (msg != null) msgs.add(msg);
+                    }
+                    chatAdapter.setMessages(msgs);
+                    if (!msgs.isEmpty()) {
+                        chatRecyclerView.scrollToPosition(msgs.size() - 1);
+                    }
+                });
+    }
+
+    private void stopChatListener() {
+        if (chatListener != null) {
+            chatListener.remove();
+            chatListener = null;
+        }
+        chatAdapter.clear();
+    }
+
+    private void sendChatMessage() {
+        if (chatInput == null) return;
+        String text = chatInput.getText() != null ? chatInput.getText().toString().trim() : "";
+        if (text.isEmpty()) return;
+
+        chatInput.setText("");
+
+        ChatMessage msg = new ChatMessage(
+                currentUser.getUid(), myName, text, myPhotoBase64, currentDay);
+
+        db.collection("games").document(roomId)
+                .collection("chat")
+                .add(msg)
+                .addOnFailureListener(e ->
+                        Toast.makeText(this, "Ошибка отправки", Toast.LENGTH_SHORT).show());
+    }
+
+    // ─────────────────────────────────────────────────────────────
     // Lifecycle
     // ─────────────────────────────────────────────────────────────
 
@@ -707,6 +811,7 @@ public class GameActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         if (gameListener != null) gameListener.remove();
+        stopChatListener();
         cancelTimer();
     }
 
