@@ -110,7 +110,7 @@ public class CreateRoomActivity extends AppCompatActivity {
             privacyLabel.setText("Публичная комната");
             privacyLabel.setTextColor(getResources().getColor(R.color.light_text));
 
-            Toast.makeText(this, "Комната будет публичной", Toast.LENGTH_SHORT).show();
+            //Toast.makeText(this, "Комната будет публичной", Toast.LENGTH_SHORT).show();
         }
     }
 

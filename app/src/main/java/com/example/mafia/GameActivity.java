@@ -29,6 +29,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import android.media.MediaPlayer;
+
 
 public class GameActivity extends AppCompatActivity {
 
@@ -62,6 +64,8 @@ public class GameActivity extends AppCompatActivity {
     private TextView infoText;
     private TextView timerText;
     private TextView roleDisplayText;
+    private android.widget.ImageView roleRevealImage;
+    private android.widget.ImageView roleDisplayImage;
     private RecyclerView playersRecyclerView;
     private Button actionButton;
     private Button startVotingButton;
@@ -91,6 +95,8 @@ public class GameActivity extends AppCompatActivity {
     private String selectedTarget = null;
     private boolean hasActed = false;
     private CountDownTimer phaseTimer;
+    private String previousRole = null;
+    private MediaPlayer gameMusicPlayer;
 
     // ── Флаги ─────────────────────────────────────────────────────
     private boolean nightResultShown = false;
@@ -127,6 +133,8 @@ public class GameActivity extends AppCompatActivity {
         infoText = findViewById(R.id.infoText);
         timerText = findViewById(R.id.timerText);
         roleDisplayText = findViewById(R.id.roleDisplayText);
+        roleRevealImage = findViewById(R.id.roleRevealImage);
+        roleDisplayImage = findViewById(R.id.roleDisplayImage);
         playersRecyclerView = findViewById(R.id.playersRecyclerView);
         actionButton = findViewById(R.id.actionButton);
         startVotingButton = findViewById(R.id.startVotingButton);
@@ -197,7 +205,26 @@ public class GameActivity extends AppCompatActivity {
             }
         });
     }
+    private void startGameMusic() {
+        if (gameMusicPlayer == null) {
+            gameMusicPlayer = MediaPlayer.create(this, R.raw.sound_for_game);
+            gameMusicPlayer.setLooping(true); // бесконечное повторение
+        }
 
+        if (!gameMusicPlayer.isPlaying()) {
+            gameMusicPlayer.start();
+        }
+    }
+
+    private void stopGameMusic() {
+        if (gameMusicPlayer != null) {
+            if (gameMusicPlayer.isPlaying()) {
+                gameMusicPlayer.stop();
+            }
+            gameMusicPlayer.release();
+            gameMusicPlayer = null;
+        }
+    }
     // ─────────────────────────────────────────────────────────────
     // FIRESTORE LISTENER
     // ─────────────────────────────────────────────────────────────
@@ -230,10 +257,13 @@ public class GameActivity extends AppCompatActivity {
         // Роль читаем из единственного источника правды — players.<uid>.role
         String newMyRole = getRoleFromPlayers(playersMap, currentUser.getUid());
         myRole = newMyRole;
-        roleDisplayText.setText(getRoleDisplay());
-        if (roleRevealLayout.getVisibility() == View.VISIBLE) {
+        if (newMyRole != null && !newMyRole.equals(previousRole)) {
+            previousRole = newMyRole;
             showRoleRevealAnimation();
+            startGameMusic();
         }
+        roleDisplayText.setText(getRoleDisplay());
+        applyRoleImages();
 
         String newPhase = (String) data.get("phase");
         String newNightStage = (String) data.get("nightStage");
@@ -542,6 +572,7 @@ public class GameActivity extends AppCompatActivity {
     // ─────────────────────────────────────────────────────────────
 
     private void showNightResultScreen(Map<String, Object> nightResultData) {
+        stopGameMusic();
         if (nightResultShown) return;
         nightResultShown = true;
         cancelTimer();
@@ -560,6 +591,7 @@ public class GameActivity extends AppCompatActivity {
     }
 
     private void showVoteResultScreen(Map<String, Object> voteResultData) {
+        stopGameMusic();
         if (voteResultShown) return;
         voteResultShown = true;
         cancelTimer();
@@ -580,6 +612,7 @@ public class GameActivity extends AppCompatActivity {
     }
 
     private void handleGameEnd(Map<String, Object> data) {
+        stopGameMusic();
         if (gameEndHandled) return;
         gameEndHandled = true;
 
@@ -596,18 +629,32 @@ public class GameActivity extends AppCompatActivity {
     // ─────────────────────────────────────────────────────────────
 
     private void showRoleRevealAnimation() {
+        MediaPlayer mediaPlayer = MediaPlayer.create(this, R.raw.sound_for_role);
+        mediaPlayer.start();
+
+        mediaPlayer.setOnCompletionListener(mp -> {
+            mp.release();
+        });
+        applyRoleImages();
         Animation fadeIn = AnimationUtils.loadAnimation(this, R.anim.fade_in);
         roleText.setText(getRoleDisplay());
         roleText.startAnimation(fadeIn);
         roleText.setVisibility(View.VISIBLE);
+        if (roleRevealImage != null && roleRevealImage.getVisibility() == View.VISIBLE) {
+            roleRevealImage.startAnimation(fadeIn);
+        }
 
         new Handler().postDelayed(() -> {
             Animation fadeOut = AnimationUtils.loadAnimation(this, R.anim.fade_out);
             roleText.startAnimation(fadeOut);
+            if (roleRevealImage != null && roleRevealImage.getVisibility() == View.VISIBLE) {
+                roleRevealImage.startAnimation(fadeOut);
+            }
 
             fadeOut.setAnimationListener(new Animation.AnimationListener() {
                 @Override public void onAnimationEnd(Animation animation) {
                     roleText.setVisibility(View.GONE);
+                    if (roleRevealImage != null) roleRevealImage.setVisibility(View.GONE);
                     roleRevealLayout.setVisibility(View.GONE);
 
                     Animation slideIn = AnimationUtils.loadAnimation(GameActivity.this, R.anim.slide_in);
@@ -724,11 +771,37 @@ public class GameActivity extends AppCompatActivity {
     private String getRoleDisplay() {
         if (myRole == null) return "Неизвестно";
         String r = normalizeRole(myRole);
-        if ("mafia".equals(r)) return "🔫 МАФИЯ";
-        if ("sheriff".equals(r)) return "🕵️ ШЕРИФ";
-        if ("doctor".equals(r)) return "💉 ДОКТОР";
-        if ("civilian".equals(r)) return "👤 МИРНЫЙ";
+        if ("mafia".equals(r)) return "МАФИЯ";
+        if ("sheriff".equals(r)) return "ШЕРИФ";
+        if ("doctor".equals(r)) return "ДОКТОР";
+        if ("civilian".equals(r)) return "МИРНЫЙ";
+        if ("lover".equals(r)) return "ЛЮБОВНИЦА";
         return myRole.toUpperCase();
+    }
+
+    private int getRoleImageRes() {
+        if (myRole == null) return 0;
+        String r = normalizeRole(myRole);
+        if ("mafia".equals(r)) return R.drawable.role_mafia;
+        if ("sheriff".equals(r)) return R.drawable.role_sheriff;
+        if ("doctor".equals(r)) return R.drawable.role_doctor;
+        if ("civilian".equals(r)) return R.drawable.role_civilian;
+        if ("lover".equals(r)) return R.drawable.role_lover;
+        return 0;
+    }
+
+    private void applyRoleImages() {
+        int imgRes = getRoleImageRes();
+        if (imgRes != 0) {
+            if (roleRevealImage != null) {
+                roleRevealImage.setImageResource(imgRes);
+                roleRevealImage.setVisibility(android.view.View.VISIBLE);
+            }
+            if (roleDisplayImage != null) {
+                roleDisplayImage.setImageResource(imgRes);
+                roleDisplayImage.setVisibility(android.view.View.VISIBLE);
+            }
+        }
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -809,6 +882,7 @@ public class GameActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        stopGameMusic();
         super.onDestroy();
         if (gameListener != null) gameListener.remove();
         stopChatListener();
@@ -817,6 +891,7 @@ public class GameActivity extends AppCompatActivity {
 
     @Override
     public void onBackPressed() {
+        stopGameMusic();
         new AlertDialog.Builder(this)
                 .setTitle("Выйти из игры?")
                 .setMessage("Вы действительно хотите покинуть игру?")

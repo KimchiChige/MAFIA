@@ -94,7 +94,6 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
                 bubble.setBackgroundResource(R.drawable.bg_chat_bubble_mine);
                 messageText.setTextColor(0xFFFFFFFF);
             } else {
-                // Чужое — слева, тёмный пузырь, имя видно
                 bubbleContainer.setGravity(Gravity.START);
                 nameText.setVisibility(View.VISIBLE);
                 nameText.setText(msg.getName());

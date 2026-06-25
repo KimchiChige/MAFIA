@@ -4,6 +4,7 @@ import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.animation.ObjectAnimator;
 import android.content.Intent;
+import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.os.Handler;
@@ -87,6 +88,14 @@ public class NightResultActivity extends AppCompatActivity {
         String sheriffTargetName = intent.getStringExtra("sheriffTargetName");
         String sheriffTargetRole = intent.getStringExtra("sheriffTargetRole");
         boolean hasDeath = killedName != null && !killedName.trim().isEmpty() && !wasBlocked;
+        if (hasDeath) {
+            MediaPlayer mediaPlayer = MediaPlayer.create(this, R.raw.sound_for_kill);
+            mediaPlayer.start();
+
+            mediaPlayer.setOnCompletionListener(mp -> {
+                mp.release();
+            });
+        }
         animateFog(() -> {
             if (hasDeath) {
                 showDeathMessage(killedName, killedRole);
@@ -120,6 +129,14 @@ public class NightResultActivity extends AppCompatActivity {
     }
 
     private void showDeathMessage(String name, String role) {
+        MediaPlayer mediaPlayer = MediaPlayer.create(this, R.raw.sound_for_kill);
+        mediaPlayer.start();
+
+        mediaPlayer.setOnCompletionListener(mp -> {
+            mp.release();
+        });
+
+        killedNameText.setText(name);
         killedNameText.setText(name);
         deathLayout.setVisibility(View.VISIBLE);
         deathLayout.setAlpha(0f);
