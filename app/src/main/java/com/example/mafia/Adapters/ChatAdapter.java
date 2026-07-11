@@ -1,11 +1,11 @@
 package com.example.mafia.Adapters;
 
+import android.graphics.Color;
 import android.util.Base64;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -21,30 +21,79 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
+/**
+ * ChatAdapter с поддержкой ghost-чата (мёртвые <-> мёртвые).
+ *
+ * Правила видимости:
+ *  - Живой игрок: видит ТОЛЬКО сообщения с isGhost==false
+ *  - Мёртвый игрок: видит ВСЕ сообщения, но ghost-сообщения выделены особо
+ *
+ * Визуальное разделение:
+ *  - Обычные сообщения — стандартный тёмный пузырь (как раньше)
+ *  - Ghost-сообщения своих (isMine+isGhost) — полупрозрачный фиолетовый пузырь справа
+ *  - Ghost-сообщения других (isGhost, !isMine) — фиолетовый пузырь слева + 💀 перед именем
+ */
 public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder> {
 
     private final String myUid;
-    private final List<ChatMessage> messages = new ArrayList<>();
-    private static final SimpleDateFormat TIME_FMT = new SimpleDateFormat("HH:mm", Locale.getDefault());
+    private boolean viewerIsAlive = true;   // статус текущего игрока
+
+    private final List<ChatMessage> allMessages = new ArrayList<>();   // все входящие
+    private final List<ChatMessage> visibleMessages = new ArrayList<>(); // то, что показываем
+
+    private static final SimpleDateFormat TIME_FMT =
+            new SimpleDateFormat("HH:mm", Locale.getDefault());
+
+    // Цвета ghost-чата
+    private static final int GHOST_BG_MINE  = 0xCC4A0080;   // фиолетовый, свои
+    private static final int GHOST_BG_OTHER = 0xCC2D0060;   // тёмно-фиолетовый, чужие
+    private static final int GHOST_TEXT     = 0xFFD9A0FF;   // сиреневый текст
+    private static final int GHOST_NAME     = 0xFFB060FF;   // фиолетовый для имени
 
     public ChatAdapter(String myUid) {
         this.myUid = myUid;
     }
 
+    /** Вызывать при изменении статуса живой/мёртвый. */
+    public void setViewerAlive(boolean alive) {
+        this.viewerIsAlive = alive;
+        rebuildVisible();
+    }
+
     public void addMessage(ChatMessage msg) {
-        messages.add(msg);
-        notifyItemInserted(messages.size() - 1);
+        allMessages.add(msg);
+        if (shouldShow(msg)) {
+            visibleMessages.add(msg);
+            notifyItemInserted(visibleMessages.size() - 1);
+        }
     }
 
     public void setMessages(List<ChatMessage> newMessages) {
-        messages.clear();
-        messages.addAll(newMessages);
-        notifyDataSetChanged();
+        allMessages.clear();
+        allMessages.addAll(newMessages);
+        rebuildVisible();
     }
 
     public void clear() {
-        messages.clear();
+        allMessages.clear();
+        visibleMessages.clear();
         notifyDataSetChanged();
+    }
+
+    private void rebuildVisible() {
+        visibleMessages.clear();
+        for (ChatMessage m : allMessages) {
+            if (shouldShow(m)) visibleMessages.add(m);
+        }
+        notifyDataSetChanged();
+    }
+
+    /** Живой видит только живые сообщения. Мёртвый — все. */
+    private boolean shouldShow(ChatMessage msg) {
+        if (viewerIsAlive) {
+            return !msg.isGhost();          // живые не видят ghost
+        }
+        return true;                        // мёртвые видят всё
     }
 
     @NonNull
@@ -57,11 +106,11 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
 
     @Override
     public void onBindViewHolder(@NonNull ChatViewHolder h, int position) {
-        h.bind(messages.get(position));
+        h.bind(visibleMessages.get(position));
     }
 
     @Override
-    public int getItemCount() { return messages.size(); }
+    public int getItemCount() { return visibleMessages.size(); }
 
     class ChatViewHolder extends RecyclerView.ViewHolder {
         private final LinearLayout bubbleContainer;
@@ -82,41 +131,88 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
         }
 
         void bind(ChatMessage msg) {
-            boolean isMine = myUid.equals(msg.getUid());
+            boolean isMine  = myUid.equals(msg.getUid());
+            boolean isGhost = msg.isGhost();
 
             messageText.setText(msg.getText());
             timeText.setText(TIME_FMT.format(new Date(msg.getTimestamp())));
 
+            if (isGhost) {
+                bindGhost(msg, isMine);
+            } else {
+                bindNormal(msg, isMine);
+            }
+        }
+
+        // ── Обычное сообщение (как раньше) ───────────────────────────────
+        private void bindNormal(ChatMessage msg, boolean isMine) {
             if (isMine) {
                 bubbleContainer.setGravity(Gravity.END);
                 nameText.setVisibility(View.GONE);
                 avatar.setVisibility(View.GONE);
                 bubble.setBackgroundResource(R.drawable.bg_chat_bubble_mine);
                 messageText.setTextColor(0xFFFFFFFF);
+                timeText.setTextColor(0xAAFFFFFF);
             } else {
                 bubbleContainer.setGravity(Gravity.START);
                 nameText.setVisibility(View.VISIBLE);
                 nameText.setText(msg.getName());
+                nameText.setTextColor(0xFF8B0000);
                 avatar.setVisibility(View.VISIBLE);
                 bubble.setBackgroundResource(R.drawable.bg_chat_bubble_other);
                 messageText.setTextColor(0xFFDDDDDD);
+                timeText.setTextColor(0xFF777777);
+                loadAvatar(msg.getPhotoBase64());
+            }
+        }
 
-                String photo = msg.getPhotoBase64();
-                if (photo != null && !photo.isEmpty()) {
-                    try {
-                        byte[] bytes = Base64.decode(photo, Base64.DEFAULT);
-                        avatar.clearColorFilter();
-                        Glide.with(itemView.getContext())
-                                .load(bytes)
-                                .transform(new CircleCrop())
-                                .placeholder(R.drawable.ic_player_avatar1)
-                                .into(avatar);
-                    } catch (Exception e) {
-                        avatar.setImageResource(R.drawable.ic_player_avatar1);
-                    }
-                } else {
+        // ── Ghost сообщение (мёртвый чат) ────────────────────────────────
+        private void bindGhost(ChatMessage msg, boolean isMine) {
+            // Полупрозрачный фиолетовый фон пузыря
+            android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
+            bg.setCornerRadius(18f);
+            bg.setStroke(2, 0xFF9C27B0);
+
+            if (isMine) {
+                bubbleContainer.setGravity(Gravity.END);
+                nameText.setVisibility(View.GONE);
+                avatar.setVisibility(View.GONE);
+                bg.setColor(GHOST_BG_MINE);
+                bubble.setBackground(bg);
+                messageText.setTextColor(GHOST_TEXT);
+                timeText.setTextColor(0xAA9C27B0);
+            } else {
+                bubbleContainer.setGravity(Gravity.START);
+                nameText.setVisibility(View.VISIBLE);
+                nameText.setText("💀 " + msg.getName());
+                nameText.setTextColor(GHOST_NAME);
+                avatar.setVisibility(View.VISIBLE);
+                bg.setColor(GHOST_BG_OTHER);
+                bubble.setBackground(bg);
+                messageText.setTextColor(GHOST_TEXT);
+                timeText.setTextColor(0xAA9C27B0);
+                loadAvatar(msg.getPhotoBase64());
+                // Полупрозрачность аватарки для мёртвых
+                avatar.setAlpha(0.7f);
+            }
+        }
+
+        private void loadAvatar(String photoBase64) {
+            avatar.setAlpha(1f);
+            if (photoBase64 != null && !photoBase64.isEmpty()) {
+                try {
+                    byte[] bytes = Base64.decode(photoBase64, Base64.DEFAULT);
+                    avatar.clearColorFilter();
+                    Glide.with(itemView.getContext())
+                            .load(bytes)
+                            .transform(new CircleCrop())
+                            .placeholder(R.drawable.ic_player_avatar1)
+                            .into(avatar);
+                } catch (Exception e) {
                     avatar.setImageResource(R.drawable.ic_player_avatar1);
                 }
+            } else {
+                avatar.setImageResource(R.drawable.ic_player_avatar1);
             }
         }
     }

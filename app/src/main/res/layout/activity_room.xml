@@ -89,38 +89,58 @@
         android:id="@+id/buttonContainer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:padding="16dp"
-        android:gravity="center_vertical"
-        android:weightSum="2">
+        android:orientation="vertical"
+        android:padding="16dp">
 
-        <!-- Кнопка начать игру (только для хоста) -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/startGameButton"
-            android:layout_width="0dp"
-            android:layout_height="48dp"
-            android:layout_weight="1.6"
-            android:text="НАЧАТЬ"
-            app:backgroundTint="@null"
-            android:background="@drawable/btn_mafia_final"
-            android:textColor="@color/black"
-            android:textSize="14sp"
-            android:textStyle="bold"
-            android:visibility="gone"
-            android:layout_marginEnd="8dp"/>
+        <!-- Верхний ряд: Начать / Покинуть -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
 
+            <!-- Кнопка начать игру (только для хоста) -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/startGameButton"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:text="НАЧАТЬ"
+                app:backgroundTint="@null"
+                android:background="@drawable/btn_mafia_final"
+                android:textColor="@color/black"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:visibility="gone"
+                android:layout_marginEnd="8dp"/>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/leaveRoomButton"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:text="✕ ПОКИНУТЬ"
+                app:backgroundTint="@null"
+                android:background="@drawable/btn_leave_room"
+                android:textColor="#FF4444"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:visibility="visible"/>
+        </LinearLayout>
+
+        <!-- Нижний ряд: Выбрать роль заранее (Premium) -->
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/leaveRoomButton"
-            android:layout_width="0dp"
+            android:id="@+id/selectRoleButton"
+            android:layout_width="match_parent"
             android:layout_height="48dp"
-            android:layout_weight="2.0"
-            android:text="✕ ПОКИНУТЬ"
-            app:backgroundTint="@null"
-            android:background="@drawable/btn_leave_room"
-            android:textColor="#FF4444"
-            android:textSize="14sp"
-            android:textStyle="bold"
-            android:visibility="visible"/>
+            android:layout_marginTop="8dp"
+            android:text="🔒 Выбрать роль заранее"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            app:backgroundTint="#8B0000"
+            app:cornerRadius="8dp"
+             />
+
     </LinearLayout>
 
     <!-- Прогресс бар -->

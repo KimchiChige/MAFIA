@@ -8,28 +8,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Вся логика перехода игры между стадиями (ночные роли → следующая роль → день →
- * голосование → следующая ночь) теперь выполняется ВНУТРИ Firestore-транзакций.
- *
- * Почему это важно и что было не так раньше:
- *  - Раньше переходы стадий мог выполнять ТОЛЬКО хост (проверка isHost) — если у хоста
- *    приложение уходило в фон, терялась сеть, либо его слушатель Firestore просто не
- *    успевал сработать, игра у ВСЕХ игроков замирала намертво на одной и той же стадии.
- *  - Раньше использовалось чтение документа (.get()) и затем отдельная запись (.update()) —
- *    классическая гонка "прочитать-изменить-записать". Если два события приходили почти
- *    одновременно (например, два последних голоса мафии), оба читали одно и то же старое
- *    состояние и оба пытались посчитать и записать результат — итог становился случайным.
- *
- * Теперь:
- *  - Каждое действие игрока (submitNightAction / submitDayVote) проверяет завершённость
- *    стадии и, если нужно, сразу выполняет переход СВОИМ ЖЕ устройством, внутри одной
- *    атомарной транзакции. Это работает одинаково для хоста и не-хоста.
- *  - На случай, если кто-то из игроков "завис" (отключился, не сделал выбор) — у КАЖДОГО
- *    подключённого клиента работает свой таймер обратного отсчёта; по истечении времени
- *    он сам пытается принудительно продвинуть игру (forceAdvanceNightStage /
- *    forceResolveVoting / forceStartVoting). Поскольку это тоже транзакции, конкурентные
- *    попытки от нескольких устройств не портят данные — побеждает первая закоммиченная,
- *    остальные видят уже обновлённое состояние и просто ничего не делают.
+ * Все переходы игровых стадий через атомарные Firestore-транзакции.
  */
 public class GameTransactions {
 
@@ -42,226 +21,303 @@ public class GameTransactions {
         return db.collection("games").document(roomId);
     }
 
-    private static void run(com.google.android.gms.tasks.Task<Void> task, OnTxComplete cb) {
-        task.addOnSuccessListener(v -> { if (cb != null) cb.onSuccess(); })
+    // ── Ночное действие ────────────────────────────────────────────────────
+    public static void submitNightAction(FirebaseFirestore db, String roomId, String uid,
+                                         String targetId, OnTxComplete cb) {
+        DocumentReference docRef = ref(db, roomId);
+        db.runTransaction(transaction -> {
+                    DocumentSnapshot snap = transaction.get(docRef);
+                    if (!snap.exists()) return null;
+                    Map<String, Object> data = toMap(snap.getData());
+                    if (!"night".equals(data.get("phase"))) return null;
+
+                    Map<String, Object> players = toMap(data.get("players"));
+                    String myRole = roleOf(players, uid);
+                    String stage  = str(data.get("nightStage"), "mafia");
+
+                    if (myRole == null || !myRole.equals(stage) || !isAlive(players, uid)) return null;
+
+                    Map<String, Object> nightActions = toMap(data.get("nightActions"));
+                    boolean stageComplete;
+                    Map<String, Object> writeNow = new HashMap<>();
+
+                    if ("mafia".equals(stage)) {
+                        // Читаем уже сохранённые голоса из Firestore (не из локальной копии)
+                        Map<String, Object> existingVotes = toMap(snap.get("nightActions.mafia"));
+                        existingVotes.put(uid, targetId);
+                        writeNow.put("nightActions.mafia." + uid, targetId);
+                        stageComplete = existingVotes.size() >= countAliveRole(players, "mafia");
+                        if (stageComplete) {
+                            // Кладём обновлённые голоса в nightActions для resolve()
+                            nightActions.put("mafia", existingVotes);
+                        }
+                    } else {
+                        nightActions.put(stage, targetId);
+                        writeNow.put("nightActions." + stage, targetId);
+                        stageComplete = true;
+                    }
+
+                    if (!stageComplete) {
+                        transaction.update(docRef, writeNow);
+                        return null;
+                    }
+
+                    String next = nextLivingStage(players, stage);
+                    if (next != null) {
+                        writeNow.put("nightStage", next);
+                        transaction.update(docRef, writeNow);
+                        return null;
+                    }
+
+                    // Последнее действие — разрешаем итог ночи
+                    int currentDay = intOf(data.get("dayNumber"), 1);
+                    NightResultProcessor.NightResult result =
+                            NightResultProcessor.resolve(players, nightActions, currentDay, null);
+                    transaction.update(docRef, result.updates);
+
+                    if (!result.perksToConsume.isEmpty()) {
+                        consumeUsedPerks(db, result.perksToConsume);
+                    }
+                    return null;
+                }).addOnSuccessListener(v -> { if (cb != null) cb.onSuccess(); })
                 .addOnFailureListener(e -> { if (cb != null) cb.onError(e); });
     }
 
-    // ── Игрок отправляет ночное действие (мафия/доктор/шериф) ─────────────
-    public static void submitNightAction(FirebaseFirestore db, String roomId, String uid,
-                                          String targetId, OnTxComplete cb) {
-        DocumentReference docRef = ref(db, roomId);
-        run(db.runTransaction(transaction -> {
-            DocumentSnapshot snap = transaction.get(docRef);
-            if (!snap.exists()) return null;
-            Map<String, Object> data = snap.getData();
-            if (data == null) return null;
-            if (!"night".equals(data.get("phase"))) return null; // фаза уже сменилась — поздно
-
-            Map<String, Object> players = asMap(data.get("players"));
-            String myRole = roleOf(players, uid);
-            String stage = (String) data.get("nightStage");
-            if (stage == null) stage = "mafia";
-
-            // Не моя стадия, или я не имею права действовать — игнорируем (защита от устаревшего тапа)
-            if (myRole == null || !myRole.equals(stage) || !isAlive(players, uid)) return null;
-
-            Map<String, Object> nightActions = asMap(data.get("nightActions"));
-            Map<String, Object> updatedNightActions = new HashMap<>(nightActions);
-            boolean stageComplete;
-            Map<String, Object> writeNow = new HashMap<>();
-
-            if ("mafia".equals(stage)) {
-                Map<String, Object> mafiaVotes = new HashMap<>(asMap(nightActions.get("mafia")));
-                mafiaVotes.put(uid, targetId);
-                updatedNightActions.put("mafia", mafiaVotes);
-                writeNow.put("nightActions.mafia." + uid, targetId);
-                stageComplete = mafiaVotes.size() >= countAliveRole(players, "mafia");
-            } else {
-                updatedNightActions.put(stage, targetId);
-                writeNow.put("nightActions." + stage, targetId);
-                stageComplete = true; // у доктора и шерифа всего один действующий игрок
-            }
-
-            if (!stageComplete) {
-                transaction.update(docRef, writeNow);
-                return null;
-            }
-
-            String next = nextLivingStage(players, stage);
-            if (next != null) {
-                writeNow.put("nightStage", next);
-                transaction.update(docRef, writeNow);
-                return null;
-            }
-
-            // Это было последнее необходимое действие этой ночи — сразу считаем итог.
-            int currentDay = intOf(data.get("dayNumber"), 1);
-            NightResultProcessor.NightResult result =
-                    NightResultProcessor.resolve(players, updatedNightActions, currentDay);
-            transaction.update(docRef, result.updates);
-            return null;
-        }), cb);
-    }
-
-    // ── Игрок отправляет дневной голос ─────────────────────────────────────
+    // ── Дневное голосование ────────────────────────────────────────────────
     public static void submitDayVote(FirebaseFirestore db, String roomId, String uid,
-                                      String targetId, OnTxComplete cb) {
+                                     String targetId, OnTxComplete cb) {
         DocumentReference docRef = ref(db, roomId);
-        run(db.runTransaction(transaction -> {
-            DocumentSnapshot snap = transaction.get(docRef);
-            if (!snap.exists()) return null;
-            Map<String, Object> data = snap.getData();
-            if (data == null) return null;
-            if (!"voting".equals(data.get("phase"))) return null;
+        db.runTransaction(transaction -> {
+                    DocumentSnapshot snap = transaction.get(docRef);
+                    if (!snap.exists()) return null;
+                    Map<String, Object> data = toMap(snap.getData());
+                    if (!"voting".equals(data.get("phase"))) return null;
 
-            Map<String, Object> players = asMap(data.get("players"));
-            if (!isAlive(players, uid)) return null;
+                    Map<String, Object> players = toMap(data.get("players"));
+                    if (!isAlive(players, uid)) return null;
 
-            Map<String, Object> dayVotes = new HashMap<>(asMap(data.get("dayVotes")));
-            dayVotes.put(uid, targetId);
+                    // Читаем голоса из Firestore напрямую
+                    Map<String, Object> existingVotes = toMap(snap.get("dayVotes"));
+                    existingVotes.put(uid, targetId);
 
-            int aliveCount = countAliveRole(players, null);
-            if (dayVotes.size() < aliveCount) {
-                transaction.update(docRef, "dayVotes." + uid, targetId);
-                return null;
-            }
+                    int aliveCount = countAliveRole(players, null);
+                    if (existingVotes.size() < aliveCount) {
+                        transaction.update(docRef, "dayVotes." + uid, targetId);
+                        return null;
+                    }
 
-            int currentDay = intOf(data.get("dayNumber"), 1);
-            DayVotingProcessor.VoteResult result =
-                    DayVotingProcessor.resolve(players, dayVotes, currentDay);
-            transaction.update(docRef, result.updates);
-            return null;
-        }), cb);
+                    int currentDay = intOf(data.get("dayNumber"), 1);
+                    DayVotingProcessor.VoteResult result =
+                            DayVotingProcessor.resolve(players, existingVotes, currentDay);
+                    transaction.update(docRef, result.updates);
+                    return null;
+                }).addOnSuccessListener(v -> { if (cb != null) cb.onSuccess(); })
+                .addOnFailureListener(e -> { if (cb != null) cb.onError(e); });
     }
 
-    // ── Принудительные переходы по таймауту (может вызвать ЛЮБОЙ клиент) ───
-
+    // ── Принудительный переход ночной стадии ──────────────────────────────
     public static void forceAdvanceNightStage(FirebaseFirestore db, String roomId,
-                                               String expectedStage, OnTxComplete cb) {
+                                              String expectedStage, OnTxComplete cb) {
         DocumentReference docRef = ref(db, roomId);
-        run(db.runTransaction(transaction -> {
-            DocumentSnapshot snap = transaction.get(docRef);
-            if (!snap.exists()) return null;
-            Map<String, Object> data = snap.getData();
-            if (data == null) return null;
-            if (!"night".equals(data.get("phase"))) return null;
+        db.runTransaction(transaction -> {
+                    DocumentSnapshot snap = transaction.get(docRef);
+                    if (!snap.exists()) return null;
+                    Map<String, Object> data = toMap(snap.getData());
+                    if (!"night".equals(data.get("phase"))) return null;
 
-            String stage = (String) data.get("nightStage");
-            if (stage == null) stage = "mafia";
-            if (!stage.equals(expectedStage)) return null; // кто-то уже продвинул стадию
+                    String stage = str(data.get("nightStage"), "mafia");
+                    if (!stage.equals(expectedStage)) return null;
 
-            Map<String, Object> players = asMap(data.get("players"));
-            Map<String, Object> nightActions = asMap(data.get("nightActions"));
+                    Map<String, Object> players      = toMap(data.get("players"));
+                    Map<String, Object> nightActions = toMap(data.get("nightActions"));
 
-            String next = nextLivingStage(players, stage);
-            if (next != null) {
-                transaction.update(docRef, "nightStage", next);
-                return null;
-            }
+                    // Читаем голоса мафии из Firestore
+                    Map<String, Object> mafiaVotes = toMap(snap.get("nightActions.mafia"));
+                    nightActions.put("mafia", mafiaVotes);
 
-            int currentDay = intOf(data.get("dayNumber"), 1);
-            NightResultProcessor.NightResult result =
-                    NightResultProcessor.resolve(players, nightActions, currentDay);
-            transaction.update(docRef, result.updates);
-            return null;
-        }), cb);
+                    String next = nextLivingStage(players, stage);
+                    if (next != null) {
+                        transaction.update(docRef, "nightStage", next);
+                        return null;
+                    }
+
+                    int currentDay = intOf(data.get("dayNumber"), 1);
+                    NightResultProcessor.NightResult result =
+                            NightResultProcessor.resolve(players, nightActions, currentDay, null);
+                    transaction.update(docRef, result.updates);
+
+                    if (!result.perksToConsume.isEmpty()) {
+                        consumeUsedPerks(db, result.perksToConsume);
+                    }
+                    return null;
+                }).addOnSuccessListener(v -> { if (cb != null) cb.onSuccess(); })
+                .addOnFailureListener(e -> { if (cb != null) cb.onError(e); });
     }
 
+    // ── Принудительное завершение голосования ─────────────────────────────
     public static void forceResolveVoting(FirebaseFirestore db, String roomId, OnTxComplete cb) {
         DocumentReference docRef = ref(db, roomId);
-        run(db.runTransaction(transaction -> {
-            DocumentSnapshot snap = transaction.get(docRef);
-            if (!snap.exists()) return null;
-            Map<String, Object> data = snap.getData();
-            if (data == null) return null;
-            if (!"voting".equals(data.get("phase"))) return null;
+        db.runTransaction(transaction -> {
+                    DocumentSnapshot snap = transaction.get(docRef);
+                    if (!snap.exists()) return null;
+                    Map<String, Object> data = toMap(snap.getData());
+                    if (!"voting".equals(data.get("phase"))) return null;
 
-            Map<String, Object> players = asMap(data.get("players"));
-            Map<String, Object> dayVotes = asMap(data.get("dayVotes"));
-            int currentDay = intOf(data.get("dayNumber"), 1);
-            DayVotingProcessor.VoteResult result =
-                    DayVotingProcessor.resolve(players, dayVotes, currentDay);
-            transaction.update(docRef, result.updates);
-            return null;
-        }), cb);
+                    Map<String, Object> players  = toMap(data.get("players"));
+                    Map<String, Object> dayVotes = toMap(snap.get("dayVotes"));
+                    int currentDay = intOf(data.get("dayNumber"), 1);
+                    DayVotingProcessor.VoteResult result =
+                            DayVotingProcessor.resolve(players, dayVotes, currentDay);
+                    transaction.update(docRef, result.updates);
+                    return null;
+                }).addOnSuccessListener(v -> { if (cb != null) cb.onSuccess(); })
+                .addOnFailureListener(e -> { if (cb != null) cb.onError(e); });
     }
 
+    // ── Начало голосования ─────────────────────────────────────────────────
     public static void forceStartVoting(FirebaseFirestore db, String roomId, OnTxComplete cb) {
         DocumentReference docRef = ref(db, roomId);
-        run(db.runTransaction(transaction -> {
-            DocumentSnapshot snap = transaction.get(docRef);
-            if (!snap.exists()) return null;
-            Map<String, Object> data = snap.getData();
-            if (data == null) return null;
-            if (!"day".equals(data.get("phase"))) return null; // уже не "день" — поздно/не нужно
-
-            transaction.update(docRef, "phase", "voting");
-            return null;
-        }), cb);
+        db.runTransaction(transaction -> {
+                    DocumentSnapshot snap = transaction.get(docRef);
+                    if (!snap.exists()) return null;
+                    Map<String, Object> data = toMap(snap.getData());
+                    if (!"day".equals(data.get("phase"))) return null;
+                    transaction.update(docRef, "phase", "voting");
+                    return null;
+                }).addOnSuccessListener(v -> { if (cb != null) cb.onSuccess(); })
+                .addOnFailureListener(e -> { if (cb != null) cb.onError(e); });
     }
 
-    // ── Вспомогательные функции ─────────────────────────────────────────────
+    // ── Списание плюшек из инвентаря (после транзакции) ───────────────────
+    static void consumeUsedPerks(FirebaseFirestore db, Map<String, String> perksToConsume) {
+        for (Map.Entry<String, String> entry : perksToConsume.entrySet()) {
+            String uid   = entry.getKey();
+            String pType = entry.getValue();
+            String field = DiamondManager.getPerkField(pType);
+            if (field == null) continue;
 
-    /** Следующая ночная стадия после currentStage, пропуская роли без живых носителей. null = ночь окончена. */
-    private static String nextLivingStage(Map<String, Object> players, String currentStage) {
-        String s = currentStage;
+            DocumentReference userRef = db.collection("users").document(uid);
+            db.runTransaction(transaction -> {
+                DocumentSnapshot snap = transaction.get(userRef);
+                long current = snap.getLong(field) != null ? snap.getLong(field) : 0L;
+                transaction.update(userRef, field, Math.max(0, current - 1));
+                return null;
+            });
+        }
+    }
+
+    // ── Вспомогательные ────────────────────────────────────────────────────
+
+    private static String nextLivingStage(Map<String, Object> players, String current) {
+        String s = current;
         while (true) {
-            if ("mafia".equals(s)) s = "doctor";
+            if      ("mafia".equals(s))  s = "doctor";
             else if ("doctor".equals(s)) s = "sheriff";
             else return null;
-
             if (countAliveRole(players, s) > 0) return s;
         }
     }
 
-    private static int countAliveRole(Map<String, Object> players, String role) {
+    static int countAliveRole(Map<String, Object> players, String role) {
         int n = 0;
         if (players == null) return 0;
-        for (Object v : players.values()) {
-            if (!(v instanceof Map)) continue;
-            @SuppressWarnings("unchecked")
-            Map<String, Object> p = (Map<String, Object>) v;
+        for (Map.Entry<String, Object> e : players.entrySet()) {
+            Map<String, Object> p = toMap(e.getValue());
             if (!isAliveFlag(p.get("alive"))) continue;
+            if (role == null) { n++; continue; }
             Object r = p.get("role");
-            String rr = r != null ? String.valueOf(r).trim().toLowerCase() : null;
-            if (role == null || role.equals(rr)) n++;
+            if (r != null && role.equals(String.valueOf(r).trim().toLowerCase())) n++;
         }
         return n;
     }
 
     private static String roleOf(Map<String, Object> players, String uid) {
-        Object p = players != null ? players.get(uid) : null;
-        if (p instanceof Map) {
-            Object r = ((Map<?, ?>) p).get("role");
-            if (r != null) {
-                String s = String.valueOf(r).trim().toLowerCase();
-                if (!s.isEmpty()) return s;
-            }
-        }
-        return null;
+        Map<String, Object> p = toMap(players != null ? players.get(uid) : null);
+        Object r = p.get("role");
+        if (r == null) return null;
+        String s = String.valueOf(r).trim().toLowerCase();
+        return s.isEmpty() ? null : s;
     }
 
     private static boolean isAlive(Map<String, Object> players, String uid) {
-        Object p = players != null ? players.get(uid) : null;
-        if (!(p instanceof Map)) return false;
-        return isAliveFlag(((Map<?, ?>) p).get("alive"));
+        Map<String, Object> p = toMap(players != null ? players.get(uid) : null);
+        return isAliveFlag(p.get("alive"));
     }
 
-    private static boolean isAliveFlag(Object aliveObj) {
-        if (aliveObj == null) return false;
-        if (aliveObj instanceof Boolean) return (Boolean) aliveObj;
-        if (aliveObj instanceof Number) return ((Number) aliveObj).intValue() != 0;
-        String s = String.valueOf(aliveObj).trim().toLowerCase();
-        return "true".equals(s) || "1".equals(s) || "yes".equals(s);
+    static boolean isAliveFlag(Object o) {
+        if (o == null) return false;
+        if (o instanceof Boolean) return (Boolean) o;
+        if (o instanceof Number)  return ((Number) o).intValue() != 0;
+        String s = String.valueOf(o).trim().toLowerCase();
+        return "true".equals(s) || "1".equals(s);
     }
 
-    private static int intOf(Object o, int def) {
+    static int intOf(Object o, int def) {
         return (o instanceof Number) ? ((Number) o).intValue() : def;
     }
 
-    @SuppressWarnings("unchecked")
-    private static Map<String, Object> asMap(Object o) {
-        return (o instanceof Map) ? new HashMap<>((Map<String, Object>) o) : new HashMap<>();
+    private static String str(Object o, String def) {
+        if (o == null) return def;
+        String s = String.valueOf(o).trim();
+        return s.isEmpty() ? def : s;
     }
+
+    /**
+     * Безопасное приведение к Map. Если объект не Map — возвращает пустой HashMap.
+     * ВАЖНО: не возвращаем ссылку на оригинал, чтобы изменения не затронули Firestore-данные.
+     */
+    @SuppressWarnings("unchecked")
+    static Map<String, Object> toMap(Object o) {
+        if (o instanceof Map) return new HashMap<>((Map<String, Object>) o);
+        return new HashMap<>();
+    }
+
+    // ── Передача управления голосованием живому игроку ────────────────────
+    /**
+     * Когда votingManagerId умер (или не задан), выбирает следующего живого игрока
+     * по детерминированному порядку (сортировка uid) и записывает нового votingManagerId.
+     * Вызывать КАЖДЫЙ раз при получении снепшота в GameActivity,
+     * если фаза day И текущий votingManagerId мёртв.
+     */
+    public static void transferVotingManagerIfNeeded(FirebaseFirestore db, String roomId,
+                                                     OnTxComplete cb) {
+        DocumentReference docRef = ref(db, roomId);
+        db.runTransaction(transaction -> {
+                    DocumentSnapshot snap = transaction.get(docRef);
+                    if (!snap.exists()) return null;
+                    Map<String, Object> data = toMap(snap.getData());
+                    if (!"day".equals(data.get("phase"))) return null;
+
+                    Map<String, Object> players = toMap(data.get("players"));
+                    Object vmObj = data.get("votingManagerId");
+                    String currentManager = (vmObj instanceof String) ? (String) vmObj : null;
+
+                    // Проверяем жив ли текущий менеджер
+                    boolean managerAlive = currentManager != null && isAlive(players, currentManager);
+                    if (managerAlive) return null; // Всё хорошо, передавать не нужно
+
+                    // Ищем следующего живого по отсортированным uid
+                    java.util.List<String> aliveUids = new java.util.ArrayList<>();
+                    for (Map.Entry<String, Object> e : players.entrySet()) {
+                        Map<String, Object> p = toMap(e.getValue());
+                        if (isAliveFlag(p.get("alive"))) aliveUids.add(e.getKey());
+                    }
+                    if (aliveUids.isEmpty()) return null;
+                    java.util.Collections.sort(aliveUids);
+
+                    // Если есть текущий менеджер — берём следующего после него по кругу
+                    String newManager;
+                    if (currentManager != null) {
+                        int idx = aliveUids.indexOf(currentManager);
+                        newManager = aliveUids.get((idx + 1) % aliveUids.size());
+                    } else {
+                        newManager = aliveUids.get(0);
+                    }
+
+                    transaction.update(docRef, "votingManagerId", newManager);
+                    return null;
+                }).addOnSuccessListener(v -> { if (cb != null) cb.onSuccess(); })
+                .addOnFailureListener(e -> { if (cb != null) cb.onError(e); });
+    }
+
 }

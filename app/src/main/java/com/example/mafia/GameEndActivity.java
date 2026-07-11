@@ -4,22 +4,19 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
-import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.firebase.firestore.WriteBatch;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Экран победы/поражения.
- * Получает: winner ("mafia" или "city"), roomId.
- * После показа результата обновляет статистику всех участников игры.
- */
 public class GameEndActivity extends AppCompatActivity {
 
     private static final String TAG = "GAME_END";
@@ -35,7 +32,9 @@ public class GameEndActivity extends AppCompatActivity {
         ImageView winnerIcon     = findViewById(R.id.winnerIcon);
         TextView  winnerTitle    = findViewById(R.id.winnerTitle);
         TextView  winnerSubtitle = findViewById(R.id.winnerSubtitle);
-        Button    exitButton     = findViewById(R.id.exitButton);
+
+        View exitButton = findViewById(R.id.exitButton);
+        if (exitButton != null) exitButton.setVisibility(View.GONE);
 
         boolean mafiaWon = "mafia".equals(winner);
 
@@ -48,52 +47,115 @@ public class GameEndActivity extends AppCompatActivity {
                 ? getColor(android.R.color.holo_red_light)
                 : 0xFF4CAF50);
 
-        // Анимация появления
         View root = findViewById(R.id.gameEndRoot);
         root.setAlpha(0f);
         root.animate().alpha(1f).setDuration(1000).start();
 
-        // Обновляем статистику игроков
         if (roomId != null) {
-            updatePlayerStats(roomId, winner);
+            updatePlayerStatsAndProceed(roomId, winner);
+        } else {
+            proceedToDiamondScreen(0, false);
         }
-
-        exitButton.setOnClickListener(v -> {
-            Intent intent = new Intent(this, LobbyActivity.class);
-            intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
-            startActivity(intent);
-            finish();
-        });
     }
 
-    /**
-     * Читает документ игры, находит всех участников и обновляет:
-     *  - totalGames  (+1 всем)
-     *  - wins        (+1 победившей команде)
-     *  - level       = 1 + floor(totalGames / 5)
-     *
-     * Защита от двойного начисления: атомарно выставляем флаг statsUpdated = true
-     * через транзакцию. Если флаг уже стоит — другой клиент уже обновил, выходим.
-     */
     @SuppressWarnings("unchecked")
-    private void updatePlayerStats(String roomId, String winner) {
+    private void updatePlayerStatsAndProceed(String roomId, String winner) {
         FirebaseFirestore db = FirebaseFirestore.getInstance();
-        com.google.firebase.firestore.DocumentReference gameRef =
-                db.collection("games").document(roomId);
+        String uid = FirebaseAuth.getInstance().getCurrentUser() != null
+                ? FirebaseAuth.getInstance().getCurrentUser().getUid() : null;
+
+        DocumentReference gameRef = db.collection("games").document(roomId);
 
         db.runTransaction(transaction -> {
-            com.google.firebase.firestore.DocumentSnapshot snap = transaction.get(gameRef);
+            DocumentSnapshot snap = transaction.get(gameRef);
             if (!snap.exists()) return null;
-            if (Boolean.TRUE.equals(snap.get("statsUpdated"))) return null;
+            if (Boolean.TRUE.equals(snap.getBoolean("statsUpdated"))) return null;
             transaction.update(gameRef, "statsUpdated", true);
             return snap.getData();
         }).addOnSuccessListener(data -> {
             if (data == null) {
-                Log.d(TAG, "Статистика уже была обновлена другим клиентом, пропускаем");
+                Log.d(TAG, "Статистика уже была обновлена другим клиентом");
+                if (uid != null) loadMyDiamondsAndProceed(db, roomId, winner, uid);
+                else proceedToDiamondScreen(0, false);
                 return;
             }
             doUpdateStats(db, (Map<String, Object>) data, winner);
-        }).addOnFailureListener(e -> Log.e(TAG, "Ошибка транзакции statsUpdated", e));
+            if (uid != null) loadMyDiamondsAndProceed(db, roomId, winner, uid);
+            else proceedToDiamondScreen(0, false);
+        }).addOnFailureListener(e -> {
+            Log.e(TAG, "Ошибка транзакции statsUpdated", e);
+            proceedToDiamondScreen(0, false);
+        });
+    }
+
+    @SuppressWarnings("unchecked")
+    private void loadMyDiamondsAndProceed(FirebaseFirestore db, String roomId, String winner, String uid) {
+        db.collection("games").document(roomId).get()
+                .addOnSuccessListener(gameSnap -> {
+                    int diamonds = 0;
+                    boolean isWinner = false;
+
+                    if (gameSnap.exists()) {
+                        Map<String, Object> players = NightResultProcessor.asMap(gameSnap.get("players"));
+                        if (players != null && players.containsKey(uid)) {
+                            Map<String, Object> me = NightResultProcessor.asMap(players.get(uid));
+                            if (me != null) {
+                                String myRole = me.get("role") != null
+                                        ? me.get("role").toString().trim().toLowerCase() : "";
+                                isWinner = didWin(myRole, winner);
+
+                                if (isWinner) {
+                                    diamonds = (int) DiamondManager.WINNER_REWARD;
+                                } else {
+                                    Object deathPosObj = me.get("deathPosition");
+                                    int deathPos = 0;
+                                    if (deathPosObj instanceof Number)
+                                        deathPos = ((Number) deathPosObj).intValue();
+                                    diamonds = DiamondManager.calcDiamondsForPosition(deathPos, false);
+                                }
+                            }
+                        }
+                    }
+
+                    consumePerksAfterGame(db, uid);
+
+                    final int finalDiamonds = diamonds;
+                    final boolean finalIsWinner = isWinner;
+                    new android.os.Handler().postDelayed(() ->
+                            proceedToDiamondScreen(finalDiamonds, finalIsWinner), 2500);
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Ошибка загрузки игры для алмазов", e);
+                    proceedToDiamondScreen(0, false);
+                });
+    }
+
+    private void consumePerksAfterGame(FirebaseFirestore db, String uid) {
+        db.collection("users").document(uid).get()
+                .addOnSuccessListener(doc -> {
+                    if (!doc.exists()) return;
+                    for (String perk : new String[]{"shield", "selfheal", "invisible"}) {
+                        String perkField  = DiamondManager.getPerkField(perk);
+                        // поле называется activePerk_perk_shield и т.д.
+                        Boolean active = doc.getBoolean("activePerk_" + perkField);
+                        if (Boolean.TRUE.equals(active)) {
+                            DiamondManager.consumeActivePerk(db, uid, perk);
+                        }
+                    }
+                });
+    }
+
+    private void proceedToDiamondScreen(int diamonds, boolean isWinner) {
+        String roomId = getIntent().getStringExtra("roomId");
+        String winner = getIntent().getStringExtra("winner");
+
+        Intent intent = new Intent(this, DiamondResultActivity.class);
+        intent.putExtra("diamondsEarned", diamonds);
+        intent.putExtra("roomId", roomId);
+        intent.putExtra("isWinner", isWinner);
+        intent.putExtra("winner", winner);
+        startActivity(intent);
+        finish();
     }
 
     @SuppressWarnings("unchecked")
@@ -107,22 +169,25 @@ public class GameEndActivity extends AppCompatActivity {
             if (entry.getValue() instanceof Map) {
                 Map<String, Object> p = (Map<String, Object>) entry.getValue();
                 Object roleObj = p.get("role");
-                if (roleObj != null) roles.put(entry.getKey(), roleObj.toString().trim().toLowerCase());
+                if (roleObj != null)
+                    roles.put(entry.getKey(), roleObj.toString().trim().toLowerCase());
             }
         }
         if (roles.isEmpty()) return;
 
         db.collection("users")
                 .whereIn(com.google.firebase.firestore.FieldPath.documentId(),
-                        new java.util.ArrayList<>(roles.keySet()))
+                        new ArrayList<>(roles.keySet()))
                 .get()
                 .addOnSuccessListener(usersSnap -> {
-                    com.google.firebase.firestore.WriteBatch batch = db.batch();
-                    for (com.google.firebase.firestore.DocumentSnapshot userDoc : usersSnap.getDocuments()) {
+                    WriteBatch batch = db.batch();
+                    for (QueryDocumentSnapshot userDoc : usersSnap) {
                         String uid  = userDoc.getId();
-                        String role = roles.getOrDefault(uid, "");
-                        long totalGames = userDoc.getLong("totalGames") != null ? userDoc.getLong("totalGames") : 0L;
-                        long wins       = userDoc.getLong("wins")       != null ? userDoc.getLong("wins")       : 0L;
+                        String role = roles.containsKey(uid) ? roles.get(uid) : "";
+                        long totalGames = userDoc.getLong("totalGames") != null
+                                ? userDoc.getLong("totalGames") : 0L;
+                        long wins = userDoc.getLong("wins") != null
+                                ? userDoc.getLong("wins") : 0L;
                         totalGames += 1;
                         if (didWin(role, winner)) wins += 1;
                         long level = 1 + (totalGames / 5);
@@ -131,28 +196,17 @@ public class GameEndActivity extends AppCompatActivity {
                         upd.put("wins", wins);
                         upd.put("level", level);
                         batch.update(userDoc.getReference(), upd);
-                        Log.d(TAG, "Статистика " + uid + ": игр=" + totalGames + " побед=" + wins);
                     }
                     batch.commit()
                             .addOnSuccessListener(v -> Log.d(TAG, "Статистика обновлена"))
                             .addOnFailureListener(e -> Log.e(TAG, "Ошибка batch", e));
-                })
-                .addOnFailureListener(e -> Log.e(TAG, "Ошибка чтения пользователей", e));
+                });
     }
 
-
-    /** Возвращает true если роль игрока входит в победившую команду */
     private boolean didWin(String role, String winner) {
-        if ("mafia".equals(winner)) {
-            return "mafia".equals(role);
-        } else {
-            // "city" победил — все кроме мафии
-            return "civilian".equals(role) || "sheriff".equals(role) || "doctor".equals(role);
-        }
+        if ("mafia".equals(winner)) return "mafia".equals(role);
+        return "civilian".equals(role) || "sheriff".equals(role) || "doctor".equals(role);
     }
 
-    @Override
-    public void onBackPressed() {
-        // Блокируем кнопку назад на экране конца игры
-    }
+    @Override public void onBackPressed() { }
 }

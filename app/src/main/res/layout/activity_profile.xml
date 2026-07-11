@@ -6,7 +6,7 @@
     android:layout_height="match_parent"
     android:background="@drawable/bg_gradient">
 
-    <!-- Шапка -->
+    <!--  Шапка  -->
     <LinearLayout
         android:id="@+id/topBar"
         android:layout_width="0dp"
@@ -29,18 +29,53 @@
             android:padding="4dp"
             app:tint="#FFFFFF"/>
 
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="МОЙ ПРОФИЛЬ"
+                android:textSize="18sp"
+                android:textColor="#FFFFFF"
+                android:textStyle="bold"
+                android:fontFamily="sans-serif-condensed"
+                android:letterSpacing="0.1"/>
+
+            <!-- Premium статус (видно только Premium) -->
+            <LinearLayout
+                android:id="@+id/premiumBadgeLayout"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/premiumStatusText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="👑 PREMIUM АККАУНТ"
+                    android:textColor="#FFD700"
+                    android:textSize="12sp"
+                    android:textStyle="bold"/>
+            </LinearLayout>
+        </LinearLayout>
+
+        <!--  Баланс алмазов в шапке  -->
         <TextView
+            android:id="@+id/profileDiamondsText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="МОЙ ПРОФИЛЬ"
-            android:textSize="18sp"
-            android:textColor="#FFFFFF"
-            android:textStyle="bold"
-            android:fontFamily="sans-serif-condensed"
-            android:letterSpacing="0.1"/>
+            android:text="💎 0"
+            android:textSize="16sp"
+            android:textColor="#FFD700"
+            android:textStyle="bold"/>
     </LinearLayout>
 
-    <!-- Основной контент -->
     <ScrollView
         android:layout_width="0dp"
         android:layout_height="0dp"
@@ -54,9 +89,9 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:gravity="center_horizontal"
-            android:padding="32dp">
+            android:padding="24dp">
 
-            <!-- Аватар -->
+            <!--  Аватар  -->
             <FrameLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -71,7 +106,6 @@
                     android:padding="4dp"
                     android:scaleType="centerCrop"/>
 
-                <!-- Иконка камеры поверх аватара -->
                 <TextView
                     android:layout_width="32dp"
                     android:layout_height="32dp"
@@ -91,17 +125,17 @@
                 android:textSize="14sp"
                 android:textColor="#8B0000"
                 android:padding="8dp"
-                android:layout_marginBottom="24dp"/>
+                android:layout_marginBottom="16dp"/>
 
-            <!-- Прогресс загрузки -->
+            <!--  Прогресс загрузки  -->
             <LinearLayout
                 android:id="@+id/uploadProgressLayout"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
+                android:layout_marginBottom="12dp"
                 android:gravity="center"
-                android:visibility="gone"
-                android:layout_marginBottom="16dp">
+                android:orientation="vertical"
+                android:visibility="gone">
 
                 <ProgressBar
                     android:id="@+id/uploadProgressBar"
@@ -115,57 +149,203 @@
                     android:id="@+id/uploadProgressText"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
                     android:text="Загрузка..."
                     android:textColor="#C0C0C0"
-                    android:textSize="12sp"
-                    android:layout_marginTop="4dp"/>
+                    android:textSize="12sp"/>
             </LinearLayout>
 
-            <!-- Никнейм -->
+            <!--  Никнейм  -->
             <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Никнейм"
-                android:layout_marginBottom="16dp"
-                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                android:layout_marginBottom="12dp"
+                android:hint="Никнейм">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/nicknameEditText"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:textColor="#FFFFFF"
                     android:inputType="text"
-                    android:maxLength="20"/>
+                    android:maxLength="20"
+                    android:textColor="#FFFFFF"/>
             </com.google.android.material.textfield.TextInputLayout>
 
-            <!-- Email (только для чтения) -->
+            <!--  Email  -->
             <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Email"
-                android:layout_marginBottom="32dp"
-                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                android:layout_marginBottom="12dp"
+                android:hint="Email">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/emailEditText"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:textColor="#808080"
-                    android:enabled="false"/>
+                    android:enabled="false"
+                    android:textColor="#808080"/>
             </com.google.android.material.textfield.TextInputLayout>
 
-            <!-- Кнопка сохранить -->
+            <!--  Сохранить  -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/saveButton"
                 android:layout_width="match_parent"
-                android:layout_height="56dp"
+                android:layout_height="52dp"
+                android:layout_marginBottom="24dp"
                 android:text="СОХРАНИТЬ"
                 android:textColor="#FFFFFF"
                 android:textSize="15sp"
                 app:backgroundTint="#8B0000"
                 app:cornerRadius="8dp"/>
 
+            <!-- ─────────────────────────── PREMIUM БЛОК ─────────────────────── -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginBottom="16dp"
+                android:background="#2A2A2A"/>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="PREMIUM"
+                android:textColor="#444444"
+                android:textSize="13sp"
+                android:letterSpacing="0.2"
+                android:visibility="gone"
+                android:layout_marginBottom="12dp"/>
+
+            <!-- Кастомизировать аккаунт -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/customizeButton"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginBottom="10dp"
+                android:text="🎨 Кастомизировать аккаунт"
+                app:backgroundTint="#8B0000"
+                app:cornerRadius="8dp"
+                android:textColor="#FFFFFF"
+                android:textSize="15sp"
+                android:backgroundTint="#333333"/>
+
+            <!-- Купить Premium (скрывается если уже есть) -->
+<!--            <Button-->
+<!--                android:id="@+id/buyPremiumButton"-->
+<!--                android:layout_width="match_parent"-->
+<!--                android:layout_height="52dp"-->
+<!--                android:layout_marginBottom="20dp"-->
+<!--                android:text="👑 КУПИТЬ PREMIUM — 99 ₽/мес"-->
+<!--                android:textColor="#000000"-->
+<!--                android:textSize="14sp"-->
+<!--                android:textStyle="bold"-->
+<!--                android:visibility="gone"-->
+<!--                android:backgroundTint="#FFD700"/>-->
+
+            <!-- ─────────────────────────── ПЛЮШКИ ──────────────────────────── -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginBottom="16dp"
+                android:background="#1A1A1A"/>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                android:letterSpacing="0.2"
+                android:text="МОИ ПЛЮШКИ"
+                android:textColor="#444444"
+                android:textSize="13sp"/>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:background="#111111"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:padding="14dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="🛡️ Защита от мафии"
+                    android:textColor="#FFFFFF"
+                    android:textSize="15sp"/>
+
+                <TextView
+                    android:id="@+id/profileShieldCount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="x0"
+                    android:textColor="#FFD700"
+                    android:textSize="14sp"/>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:background="#111111"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:padding="14dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="💉 Самолечение"
+                    android:textColor="#FFFFFF"
+                    android:textSize="15sp"/>
+
+                <TextView
+                    android:id="@+id/profileSelfhealCount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="x0"
+                    android:textColor="#FFD700"
+                    android:textSize="14sp"/>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="20dp"
+                android:background="#111111"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:padding="14dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="👻 Невидимка"
+                    android:textColor="#FFFFFF"
+                    android:textSize="15sp"/>
+
+                <TextView
+                    android:id="@+id/profileInvisibleCount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="x0"
+                    android:textColor="#FFD700"
+                    android:textSize="14sp"/>
+            </LinearLayout>
+
+            <Button
+                android:id="@+id/profileShopButton"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginBottom="24dp"
+                android:backgroundTint="#111111"
+                android:text="💎 ОТКРЫТЬ МАГАЗИН"
+                android:textColor="#FFD700"
+                android:textSize="15sp"/>
         </LinearLayout>
     </ScrollView>
-
 </androidx.constraintlayout.widget.ConstraintLayout>

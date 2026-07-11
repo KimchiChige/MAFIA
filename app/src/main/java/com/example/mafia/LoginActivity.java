@@ -232,6 +232,29 @@ public class LoginActivity extends AppCompatActivity {
         user.put("wins", 0);
         user.put("totalGames", 0);
         user.put("level", 1);
+        user.put("diamonds", 500L);
+        user.put("diamondsInitialized", true);
+        user.put("perk_shield", 0L);
+        user.put("perk_selfheal", 0L);
+        user.put("perk_invisible", 0L);
+        user.put("isPremium",           false);
+        user.put("premiumDailyLastClaim", 0L);
+        user.put("premiumRoleUsesLeft",   3L);
+        user.put("premiumRoleUsesDate",   "");
+        user.put("premiumChosenRole",     "");
+        // Кастомизация (по умолчанию)
+        user.put("isPremium",           false);
+        user.put("premiumDailyLastClaim", 0L);
+        user.put("premiumRoleUsesLeft",   3L);
+        user.put("premiumRoleUsesDate",   "");
+        user.put("premiumChosenRole",     "");
+        // Кастомизация (по умолчанию)
+        user.put("cardBorderColor",  "#8B0000");
+        user.put("avatarBadge",      "👑");       // теперь это сам эмодзи, а не название
+        user.put("nicknameColor",    "#FFFFFF");
+        user.put("cardBackground",   "#1A1A1A");   // hex цвет ИЛИ "img:<base64>" для фото
+        user.put("cardBgOpacity",    100L);        // 0..100, прозрачность фото-фона
+        user.put("trialGameAvailable", true);
 
         db.collection("users").document(userId)
                 .set(user)
@@ -242,6 +265,7 @@ public class LoginActivity extends AppCompatActivity {
                     Log.e("LoginActivity", "Ошибка создания профиля", e);
                 });
     }
+
 
     private void goToLobby() {
         Intent intent = new Intent(LoginActivity.this, LobbyActivity.class);

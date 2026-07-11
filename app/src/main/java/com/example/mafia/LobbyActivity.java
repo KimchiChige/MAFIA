@@ -73,6 +73,8 @@ public class LobbyActivity extends AppCompatActivity {
         mAuth = FirebaseAuth.getInstance();
         db = FirebaseFirestore.getInstance();
         currentUser = mAuth.getCurrentUser();
+        DiamondManager.ensureInitialDiamonds(db, currentUser.getUid());
+
 
         if (currentUser == null) {
             goToLogin();

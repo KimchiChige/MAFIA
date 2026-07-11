@@ -10,12 +10,16 @@ import static com.example.mafia.NightResultProcessor.asMap;
 import static com.example.mafia.NightResultProcessor.checkWinCondition;
 import static com.example.mafia.NightResultProcessor.deepCopyPlayers;
 import static com.example.mafia.NightResultProcessor.getPlayerName;
+import static com.example.mafia.NightResultProcessor.getPlayerPhoto;
 import static com.example.mafia.NightResultProcessor.getPlayerRole;
+import static com.example.mafia.NightResultProcessor.isAlive;
 
 /**
- * ЧИСТЫЙ (без обращений к Firestore) калькулятор итогов дневного голосования.
- * См. комментарий в NightResultProcessor — та же логика: считаем результат,
- * запись делает вызывающий код внутри Firestore-транзакции.
+ * ЗАМЕНЯЕТ DayVotingProcessor.java
+ *
+ * Изменения:
+ *  1. При казни записывает deathPosition игрока.
+ *  2. В lastVoteResult добавляется executedPlayerPhoto.
  */
 public class DayVotingProcessor {
 
@@ -23,6 +27,7 @@ public class DayVotingProcessor {
         public String executedPlayerId;
         public String executedPlayerName;
         public String executedPlayerRole;
+        public String executedPlayerPhoto;
         public boolean wasTie;
         public int topVoteCount;
         public int totalVotes;
@@ -68,15 +73,28 @@ public class DayVotingProcessor {
         Map<String, Object> updatedPlayers = deepCopyPlayers(players);
 
         if (topTarget != null && !result.wasTie) {
+            // Считаем текущий deathOrder
+            int deathOrder = 0;
+            for (Map.Entry<String, Object> e : players.entrySet()) {
+                Map<String, Object> p = asMap(e.getValue());
+                if (p == null) continue;
+                Object deathPos = p.get("deathPosition");
+                if (deathPos instanceof Number && ((Number) deathPos).intValue() > 0) deathOrder++;
+            }
+            int newDeathPos = deathOrder + 1;
+
             Map<String, Object> victim = asMap(updatedPlayers.get(topTarget));
             if (victim != null) {
                 victim.put("alive", false);
+                victim.put("deathPosition", newDeathPos);
                 updatedPlayers.put(topTarget, victim);
             }
             updates.put("players." + topTarget + ".alive", false);
-            result.executedPlayerId = topTarget;
+            updates.put("players." + topTarget + ".deathPosition", newDeathPos);
+            result.executedPlayerId   = topTarget;
             result.executedPlayerName = getPlayerName(topTarget, players);
             result.executedPlayerRole = getPlayerRole(topTarget, players);
+            result.executedPlayerPhoto= getPlayerPhoto(topTarget, players);
         }
 
         String winner = checkWinCondition(updatedPlayers);
@@ -93,16 +111,16 @@ public class DayVotingProcessor {
         }
 
         Map<String, Object> voteResultData = new HashMap<>();
-        voteResultData.put("executedPlayerId", result.executedPlayerId != null ? result.executedPlayerId : "");
+        voteResultData.put("executedPlayerId",   result.executedPlayerId   != null ? result.executedPlayerId   : "");
         voteResultData.put("executedPlayerName", result.executedPlayerName != null ? result.executedPlayerName : "");
         voteResultData.put("executedPlayerRole", result.executedPlayerRole != null ? result.executedPlayerRole : "");
-        voteResultData.put("wasTie", result.wasTie);
-        voteResultData.put("topVoteCount", result.topVoteCount);
-        voteResultData.put("totalVotes", result.totalVotes);
+        voteResultData.put("executedPlayerPhoto",result.executedPlayerPhoto!= null ? result.executedPlayerPhoto: "");
+        voteResultData.put("wasTie",        result.wasTie);
+        voteResultData.put("topVoteCount",  result.topVoteCount);
+        voteResultData.put("totalVotes",    result.totalVotes);
         if (winner != null) voteResultData.put("gameEndWinner", winner);
         updates.put("lastVoteResult", voteResultData);
         updates.put("dayVotes", new HashMap<String, String>());
-        // Очищаем результат прошлой ночи — при переподключении игрок не должен его снова видеть
         updates.put("lastNightResult", null);
 
         result.updates = updates;

@@ -1,0 +1,55 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:background="#0A0A0A">
+    <!--  Шапка  -->
+    <LinearLayout android:layout_width="match_parent" android:layout_height="56dp" android:orientation="horizontal" android:background="#000000" android:padding="12dp" android:gravity="center_vertical" android:elevation="6dp">
+        <ImageView android:id="@+id/shopBackButton" android:layout_width="32dp" android:layout_height="32dp" android:src="@drawable/ic_close" android:padding="4dp" app:tint="#FFFFFF" android:layout_marginEnd="16dp"/>
+        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="💎 МАГАЗИН" android:textSize="18sp" android:textColor="#FFFFFF" android:textStyle="bold" android:letterSpacing="0.1"/>
+        <!--  Баланс игрока  -->
+        <TextView android:id="@+id/shopBalanceText" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="💎 0" android:textSize="16sp" android:textColor="#FFD700" android:textStyle="bold"/>
+    </LinearLayout>
+    <ScrollView android:layout_width="match_parent" android:layout_height="match_parent">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+            <!--  Карточка: Защита от мафии  -->
+            <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" app:cardBackgroundColor="#111111" app:cardCornerRadius="12dp" app:cardElevation="4dp" android:layout_marginBottom="16dp">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="20dp">
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="10dp">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="🛡️ Защита от мафии" android:textSize="18sp" android:textColor="#FFFFFF" android:textStyle="bold"/>
+                        <TextView android:id="@+id/shopShieldCount" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="x0" android:textSize="14sp" android:textColor="#FFD700" android:background="#1A1A1A" android:paddingHorizontal="10dp" android:paddingVertical="4dp"/>
+                    </LinearLayout>
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Одноразовая защита: если мафия выбрала тебя ночью — ты выживаешь. Плюшка сгорает после срабатывания." android:textSize="13sp" android:textColor="#666666" android:lineSpacingMultiplier="1.4" android:layout_marginBottom="16dp"/>
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="150 💎" android:textSize="20sp" android:textColor="#FFD700" android:textStyle="bold"/>
+                        <Button android:id="@+id/shopBuyShield" android:layout_width="120dp" android:layout_height="40dp" android:text="КУПИТЬ" android:textSize="13sp" android:textColor="#FFFFFF" android:backgroundTint="#8B0000" android:letterSpacing="0.1"/>
+                    </LinearLayout>
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+            <!--  Карточка: Самолечение  -->
+            <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" app:cardBackgroundColor="#111111" app:cardCornerRadius="12dp" app:cardElevation="4dp" android:layout_marginBottom="16dp">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="20dp">
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="10dp">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="💉 Самолечение" android:textSize="18sp" android:textColor="#FFFFFF" android:textStyle="bold"/>
+                        <TextView android:id="@+id/shopSelfhealCount" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="x0" android:textSize="14sp" android:textColor="#FFD700" android:background="#1A1A1A" android:paddingHorizontal="10dp" android:paddingVertical="4dp"/>
+                    </LinearLayout>
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Если ты Доктор — один раз за игру можешь вылечить себя. В остальные ночи лечить можно только других." android:textSize="13sp" android:textColor="#666666" android:lineSpacingMultiplier="1.4" android:layout_marginBottom="16dp"/>
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="100 💎" android:textSize="20sp" android:textColor="#FFD700" android:textStyle="bold"/>
+                        <Button android:id="@+id/shopBuySelfheal" android:layout_width="120dp" android:layout_height="40dp" android:text="КУПИТЬ" android:textSize="13sp" android:textColor="#FFFFFF" android:backgroundTint="#8B0000" android:letterSpacing="0.1"/>
+                    </LinearLayout>
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+            <!--  Карточка: Невидимка  -->
+            <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" app:cardBackgroundColor="#111111" app:cardCornerRadius="12dp" app:cardElevation="4dp" android:layout_marginBottom="16dp">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="20dp">
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="10dp">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="👻 Невидимка" android:textSize="18sp" android:textColor="#FFFFFF" android:textStyle="bold"/>
+                        <TextView android:id="@+id/shopInvisibleCount" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="x0" android:textSize="14sp" android:textColor="#FFD700" android:background="#1A1A1A" android:paddingHorizontal="10dp" android:paddingVertical="4dp"/>
+                    </LinearLayout>
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Один раз за игру стань недоступным для мафии на одну ночь. Мафия не сможет тебя выбрать." android:textSize="13sp" android:textColor="#666666" android:lineSpacingMultiplier="1.4" android:layout_marginBottom="16dp"/>
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="100 💎" android:textSize="20sp" android:textColor="#FFD700" android:textStyle="bold"/>
+                        <Button android:id="@+id/shopBuyInvisible" android:layout_width="120dp" android:layout_height="40dp" android:text="КУПИТЬ" android:textSize="13sp" android:textColor="#FFFFFF" android:backgroundTint="#8B0000" android:letterSpacing="0.1"/>
+                    </LinearLayout>
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>
