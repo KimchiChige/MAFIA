@@ -12,11 +12,15 @@ public class ChatMessage {
      * Живые игроки его не видят; мёртвые видят с особым оформлением.
      */
     private boolean isGhost;
+    /**
+     * Канал сообщения: "public" (дневной чат) или "mafia" (ночной чат мафии).
+     */
+    private String channel = "public";
 
     public ChatMessage() {}
 
     public ChatMessage(String uid, String name, String text,
-                       String photoBase64, int dayNumber, boolean isGhost) {
+                       String photoBase64, int dayNumber, boolean isGhost, String channel) {
         this.uid         = uid;
         this.name        = name;
         this.text        = text;
@@ -24,6 +28,13 @@ public class ChatMessage {
         this.dayNumber   = dayNumber;
         this.timestamp   = System.currentTimeMillis();
         this.isGhost     = isGhost;
+        this.channel     = channel != null ? channel : "public";
+    }
+
+    /** Обратная совместимость — живой чат, публичный канал. */
+    public ChatMessage(String uid, String name, String text,
+                       String photoBase64, int dayNumber, boolean isGhost) {
+        this(uid, name, text, photoBase64, dayNumber, isGhost, "public");
     }
 
     /** Обратная совместимость — живой чат. */
@@ -38,6 +49,7 @@ public class ChatMessage {
     public long getTimestamp()      { return timestamp; }
     public int getDayNumber()       { return dayNumber; }
     public boolean isGhost()        { return isGhost; }
+    public String getChannel()      { return channel; }
 
     public void setUid(String uid)               { this.uid = uid; }
     public void setName(String name)             { this.name = name; }
@@ -46,4 +58,5 @@ public class ChatMessage {
     public void setTimestamp(long t)             { this.timestamp = t; }
     public void setDayNumber(int d)              { this.dayNumber = d; }
     public void setGhost(boolean ghost)          { this.isGhost = ghost; }
+    public void setChannel(String channel)       { this.channel = channel != null ? channel : "public"; }
 }

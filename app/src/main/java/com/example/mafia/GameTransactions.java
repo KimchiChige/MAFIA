@@ -4,8 +4,13 @@ import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+
+import static com.example.mafia.NightResultProcessor.checkWinCondition;
+import static com.example.mafia.NightResultProcessor.deepCopyPlayers;
 
 /**
  * Все переходы игровых стадий через атомарные Firestore-транзакции.
@@ -51,6 +56,16 @@ public class GameTransactions {
                             // Кладём обновлённые голоса в nightActions для resolve()
                             nightActions.put("mafia", existingVotes);
                         }
+                    } else if ("lover".equals(stage)) {
+                        nightActions.put(stage, targetId);
+                        writeNow.put("nightActions." + stage, targetId);
+                        // Check if loverPair already exists
+                        Object existingPair = data.get("loverPair");
+                        if (existingPair == null || !(existingPair instanceof java.util.List)
+                                || ((java.util.List<?>) existingPair).isEmpty()) {
+                            writeNow.put("loverPair", Arrays.asList(uid, targetId));
+                        }
+                        stageComplete = true;
                     } else {
                         nightActions.put(stage, targetId);
                         writeNow.put("nightActions." + stage, targetId);
@@ -62,7 +77,7 @@ public class GameTransactions {
                         return null;
                     }
 
-                    String next = nextLivingStage(players, stage);
+                    String next = nextLivingStage(players, stage, data);
                     if (next != null) {
                         writeNow.put("nightStage", next);
                         writeNow.put("phaseStartAt", System.currentTimeMillis());
@@ -73,7 +88,7 @@ public class GameTransactions {
                     // Последнее действие — разрешаем итог ночи
                     int currentDay = intOf(data.get("dayNumber"), 1);
                     NightResultProcessor.NightResult result =
-                            NightResultProcessor.resolve(players, nightActions, currentDay, null);
+                            NightResultProcessor.resolve(players, nightActions, currentDay, data);
                     transaction.update(docRef, result.updates);
 
                     if (!result.perksToConsume.isEmpty()) {
@@ -109,7 +124,7 @@ public class GameTransactions {
 
                     int currentDay = intOf(data.get("dayNumber"), 1);
                     DayVotingProcessor.VoteResult result =
-                            DayVotingProcessor.resolve(players, existingVotes, currentDay);
+                            DayVotingProcessor.resolve(players, existingVotes, currentDay, data);
                     transaction.update(docRef, result.updates);
                     return null;
                 }).addOnSuccessListener(v -> { if (cb != null) cb.onSuccess(); })
@@ -136,7 +151,7 @@ public class GameTransactions {
                     Map<String, Object> mafiaVotes = toMap(snap.get("nightActions.mafia"));
                     nightActions.put("mafia", mafiaVotes);
 
-                    String next = nextLivingStage(players, stage);
+                    String next = nextLivingStage(players, stage, data);
                     if (next != null) {
                         transaction.update(docRef,
                                 "nightStage", next,
@@ -146,7 +161,7 @@ public class GameTransactions {
 
                     int currentDay = intOf(data.get("dayNumber"), 1);
                     NightResultProcessor.NightResult result =
-                            NightResultProcessor.resolve(players, nightActions, currentDay, null);
+                            NightResultProcessor.resolve(players, nightActions, currentDay, data);
                     transaction.update(docRef, result.updates);
 
                     if (!result.perksToConsume.isEmpty()) {
@@ -170,7 +185,7 @@ public class GameTransactions {
                     Map<String, Object> dayVotes = toMap(snap.get("dayVotes"));
                     int currentDay = intOf(data.get("dayNumber"), 1);
                     DayVotingProcessor.VoteResult result =
-                            DayVotingProcessor.resolve(players, dayVotes, currentDay);
+                            DayVotingProcessor.resolve(players, dayVotes, currentDay, data);
                     transaction.update(docRef, result.updates);
                     return null;
                 }).addOnSuccessListener(v -> { if (cb != null) cb.onSuccess(); })
@@ -188,6 +203,69 @@ public class GameTransactions {
                     transaction.update(docRef,
                             "phase", "voting",
                             "phaseStartAt", System.currentTimeMillis());
+                    return null;
+                }).addOnSuccessListener(v -> { if (cb != null) cb.onSuccess(); })
+                .addOnFailureListener(e -> { if (cb != null) cb.onError(e); });
+    }
+
+    // ── Отключение: убийство игрока при потере связи ──────────────────────
+    public static void killDisconnectedPlayer(FirebaseFirestore db, String roomId, String uid,
+                                              OnTxComplete cb) {
+        DocumentReference docRef = ref(db, roomId);
+        db.runTransaction(transaction -> {
+                    DocumentSnapshot snap = transaction.get(docRef);
+                    if (!snap.exists()) return null;
+                    Map<String, Object> data = toMap(snap.getData());
+                    Map<String, Object> players = toMap(data.get("players"));
+                    Map<String, Object> p = toMap(players.get(uid));
+                    if (p == null || !isAliveFlag(p.get("alive"))) return null;
+                    Object hb = p.get("lastHeartbeat");
+                    if (hb == null) return null;
+                    long lastHb = ((Number) hb).longValue();
+                    if (System.currentTimeMillis() - lastHb < 85000) return null; // 85s to avoid race
+
+                    // Count death order
+                    int deathOrder = 0;
+                    for (Map.Entry<String, Object> e : players.entrySet()) {
+                        Map<String, Object> pd = toMap(e.getValue());
+                        if (pd == null) continue;
+                        Object dp = pd.get("deathPosition");
+                        if (dp instanceof Number && ((Number) dp).intValue() > 0) deathOrder++;
+                    }
+                    int newDeathPos = deathOrder + 1;
+
+                    Map<String, Object> updates = new HashMap<>();
+                    updates.put("players." + uid + ".alive", false);
+                    updates.put("players." + uid + ".deathPosition", newDeathPos);
+
+                    // Check win condition with updated players
+                    Map<String, Object> updatedPlayers = deepCopyPlayers(players);
+                    Map<String, Object> victim = toMap(updatedPlayers.get(uid));
+                    if (victim != null) {
+                        victim.put("alive", false);
+                        victim.put("deathPosition", newDeathPos);
+                        updatedPlayers.put(uid, victim);
+                    }
+
+                    // Lover chain death
+                    NightResultProcessor.applyLoverChainDeath(updatedPlayers, updates, data);
+
+                    String winner = checkWinCondition(updatedPlayers);
+                    if (winner != null) {
+                        updates.put("phase", "ended");
+                        updates.put("winner", winner);
+                    }
+                    // Also update lastNightResult to show who died
+                    String playerName = p.get("name") != null ? p.get("name").toString() : "Игрок";
+                    Map<String, Object> nightResult = new HashMap<>();
+                    nightResult.put("killedPlayerId", uid);
+                    nightResult.put("killedPlayerName", playerName);
+                    nightResult.put("killedPlayerRole", p.get("role") != null ? p.get("role").toString() : "");
+                    nightResult.put("wasKillBlocked", false);
+                    nightResult.put("gameEndWinner", winner);
+                    updates.put("lastNightResult", nightResult);
+
+                    transaction.update(docRef, updates);
                     return null;
                 }).addOnSuccessListener(v -> { if (cb != null) cb.onSuccess(); })
                 .addOnFailureListener(e -> { if (cb != null) cb.onError(e); });
@@ -213,12 +291,37 @@ public class GameTransactions {
 
     // ── Вспомогательные ────────────────────────────────────────────────────
 
-    private static String nextLivingStage(Map<String, Object> players, String current) {
+    /**
+     * Returns the next living night stage. If the stage is "lover" and loverPair
+     * already exists, or the lover is dead, skip to next (which will return null = resolve).
+     */
+    private static String nextLivingStage(Map<String, Object> players, String current,
+                                          Map<String, Object> gameData) {
         String s = current;
         while (true) {
             if      ("mafia".equals(s))  s = "doctor";
             else if ("doctor".equals(s)) s = "sheriff";
+            else if ("sheriff".equals(s)) s = "lover";
             else return null;
+
+            // Skip lover stage if pair already exists or no alive lover
+            if ("lover".equals(s)) {
+                boolean skipLover = false;
+                if (gameData != null) {
+                    Object lpObj = gameData.get("loverPair");
+                    if (lpObj instanceof java.util.List) {
+                        java.util.List<?> lp = (java.util.List<?>) lpObj;
+                        if (lp.size() == 2) skipLover = true; // pair already formed
+                    }
+                }
+                if (countAliveRole(players, "lover") == 0) skipLover = true;
+                if (skipLover) {
+                    // skip to next (which after "lover" returns null = resolve)
+                    s = "lover"; // will advance to null in next iteration
+                    continue;
+                }
+            }
+
             if (countAliveRole(players, s) > 0) return s;
         }
     }

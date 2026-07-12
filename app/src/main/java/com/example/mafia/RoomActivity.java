@@ -507,6 +507,11 @@ public class RoomActivity extends AppCompatActivity {
             roles.put(remaining.get(idx), "doctor");
             idx++;
         }
+        // Любовница (6+ игроков, 1 штука)
+        if (idx < remaining.size() && playerCount >= 6) {
+            roles.put(remaining.get(idx), "lover");
+            idx++;
+        }
         // Остальные — мирные
         for (; idx < remaining.size(); idx++) {
             roles.put(remaining.get(idx), "civilian");
@@ -533,6 +538,7 @@ public class RoomActivity extends AppCompatActivity {
             playerData.put("activePerk_selfheal", false);
             playerData.put("activePerk_invisible", false);
             playerData.put("resurrected", false);
+            playerData.put("lastHeartbeat", System.currentTimeMillis());
 
             com.google.firebase.firestore.DocumentSnapshot doc = userDocs.get(userId);
             boolean isPremium = doc != null && doc.exists()
@@ -569,6 +575,7 @@ public class RoomActivity extends AppCompatActivity {
         nightActions.put("mafia", new HashMap<String, String>());
         nightActions.put("doctor", null);
         nightActions.put("sheriff", null);
+        nightActions.put("lover", null);
         gameData.put("nightActions", nightActions);
 
         gameData.put("createdAt", com.google.firebase.Timestamp.now());
@@ -723,6 +730,7 @@ public class RoomActivity extends AppCompatActivity {
             case "mafia":    return "Мафия 🔫";
             case "doctor":   return "Доктор 💉";
             case "sheriff":  return "Шериф 🕵️";
+            case "lover":    return "Любовница 💕";
             default:         return "Мирный 👤";
         }
     }

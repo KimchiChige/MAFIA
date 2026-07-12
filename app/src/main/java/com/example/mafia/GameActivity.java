@@ -34,8 +34,10 @@ import com.google.firebase.firestore.ListenerRegistration;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import android.media.MediaPlayer;
 import android.view.ViewGroup;
@@ -49,8 +51,11 @@ public class GameActivity extends AppCompatActivity {
     private static final int MAFIA_STAGE_SECONDS = 30;
     private static final int DOCTOR_STAGE_SECONDS = 25;
     private static final int SHERIFF_STAGE_SECONDS = 25;
+    private static final int LOVER_STAGE_SECONDS = 20;
     private static final int DAY_DISCUSSION_SECONDS = 60;
     private static final int VOTING_SECONDS = 60;
+    private static final int HEARTBEAT_INTERVAL_MS = 10000;
+    private static final int DISCONNECT_KILL_SECONDS = 90;
 
     private FirebaseFirestore db;
     private FirebaseUser currentUser;
@@ -134,6 +139,17 @@ public class GameActivity extends AppCompatActivity {
     // Самолечение: если активна плюшка самолечения, доктор может выбрать себя
     private boolean selfhealUnlocked = false;
 
+    // ── Heartbeat (Feature 1: Disconnect Handling) ───────────────
+    private Handler heartbeatHandler;
+    private Runnable heartbeatRunnable;
+
+    // ── Disconnect kill tracking ───────────────────────────────────
+    private final Set<String> killedDisconnects = new HashSet<>();
+
+    // ── Mafia Chat (Feature 2: Private Mafia Chat) ────────────────
+    private ListenerRegistration mafiaChatListener;
+    private boolean mafiaChatVisible = false;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -157,6 +173,7 @@ public class GameActivity extends AppCompatActivity {
         initViews();
         startPerksInventoryListener();
         setupGameListener();
+        startHeartbeat();
     }
 
     private void initViews() {
@@ -214,11 +231,28 @@ public class GameActivity extends AppCompatActivity {
         openChatButton.setOnClickListener(v -> {
             chatPanel.setVisibility(View.VISIBLE);
             openChatButton.setVisibility(View.GONE);
+            if ("night".equals(currentPhase) && "mafia".equals(nightStage) && "mafia".equals(normalizeRole(myRole))) {
+                // Mafia chat mode
+                chatPanel.setTag("mafia");
+                mafiaChatVisible = true;
+                startMafiaChatListener();
+            } else {
+                // Public chat mode
+                chatPanel.setTag("public");
+                chatAdapter.setChannelFilter(null);
+                startChatListener();
+            }
             chatRecyclerView.scrollToPosition(chatAdapter.getItemCount() - 1);
         });
         findViewById(R.id.chatCloseButton).setOnClickListener(v -> {
+            if ("mafia".equals(chatPanel.getTag())) {
+                stopMafiaChatListener();
+            } else {
+                stopChatListener();
+            }
             chatPanel.setVisibility(View.GONE);
             openChatButton.setVisibility(View.VISIBLE);
+            chatPanel.setTag(null);
         });
         findViewById(R.id.chatSendButton).setOnClickListener(v -> sendChatMessage());
 
@@ -467,6 +501,27 @@ public class GameActivity extends AppCompatActivity {
         currentDay = day != null ? day.intValue() : 1;
 
         updateAliveStatus();
+
+        // ── Feature 1: Disconnect check ──────────────────────────────
+        if (playersMap != null) {
+            long now = System.currentTimeMillis();
+            for (Map.Entry<String, Object> e : playersMap.entrySet()) {
+                String puid = e.getKey();
+                if (killedDisconnects.contains(puid)) continue;
+                Object raw = e.getValue();
+                if (!(raw instanceof Map)) continue;
+                Map<String, Object> pd = (Map<String, Object>) raw;
+                if (!isAliveObject(pd.get("alive"))) continue;
+                Object hbObj = pd.get("lastHeartbeat");
+                if (hbObj == null || !(hbObj instanceof Number)) continue;
+                long lastHb = ((Number) hbObj).longValue();
+                if (now - lastHb > DISCONNECT_KILL_SECONDS * 1000L) {
+                    killedDisconnects.add(puid);
+                    GameTransactions.killDisconnectedPlayer(db, roomId, puid, null);
+                }
+            }
+        }
+
         updatePerksUI();
 
         // ── Передаём управление голосованием, если текущий votingManager мёртв ──
@@ -714,9 +769,13 @@ public class GameActivity extends AppCompatActivity {
         if (playersAdapter != null) {
             playersAdapter.setSelfSelectionAllowed(false);
         }
+        stopMafiaChatListener();
         chatPanel.setVisibility(View.GONE);
         openChatButton.setVisibility(View.GONE);
+        chatPanel.setTag(null);
+        mafiaChatVisible = false;
         stopChatListener();
+        chatAdapter.setChannelFilter(null);
         if (playersAdapter != null) {
             playersAdapter.setSelectedPlayer(null);
             playersAdapter.setVoteCounts(new HashMap<>());
@@ -764,7 +823,8 @@ public class GameActivity extends AppCompatActivity {
     private void updateNightUI() {
         int seconds = "mafia".equals(nightStage) ? MAFIA_STAGE_SECONDS
                 : "doctor".equals(nightStage) ? DOCTOR_STAGE_SECONDS
-                : SHERIFF_STAGE_SECONDS;
+                : "sheriff".equals(nightStage) ? SHERIFF_STAGE_SECONDS
+                : LOVER_STAGE_SECONDS; // lover
         startPhaseTimerOnce(seconds);
 
         if (!isAlive) {
@@ -781,6 +841,8 @@ public class GameActivity extends AppCompatActivity {
             if ("mafia".equals(normalizeRole(myRole))) {
                 showActionUI("🔫 Выберите жертву");
                 isMyStageTurn = true;
+                // Feature 2: Show chat button for mafia chat
+                openChatButton.setVisibility(View.VISIBLE);
             } else showWaitingUI("🌑 Мафия вышла на охоту...");
         } else if ("doctor".equals(nightStage)) {
             if ("doctor".equals(normalizeRole(myRole))) {
@@ -795,6 +857,13 @@ public class GameActivity extends AppCompatActivity {
                 showActionUI("🕵️ Кого проверить?");
                 isMyStageTurn = true;
             } else showWaitingUI("🔍 Шериф ведёт расследование...");
+        } else if ("lover".equals(nightStage)) {
+            if ("lover".equals(normalizeRole(myRole))) {
+                showActionUI("💕 С кем связать свою судьбу?");
+                isMyStageTurn = true;
+            } else {
+                showWaitingUI("💕 Любовница делает свой выбор...");
+            }
         }
 
         actionButton.setVisibility((isMyStageTurn && !hasActed) ? View.VISIBLE : View.GONE);
@@ -938,6 +1007,7 @@ public class GameActivity extends AppCompatActivity {
             if ("mafia".equals(nightStage)) return "mafia".equals(r);
             if ("doctor".equals(nightStage)) return "doctor".equals(r);
             if ("sheriff".equals(nightStage)) return "sheriff".equals(r);
+            if ("lover".equals(nightStage)) return "lover".equals(r);
             return false;
         }
         return "voting".equals(currentPhase);
@@ -1290,6 +1360,7 @@ public class GameActivity extends AppCompatActivity {
     private void startChatListener() {
         if (chatListener != null) return;
         chatAdapter.clear();
+        chatAdapter.setChannelFilter(null);
         chatListener = db.collection("games").document(roomId)
                 .collection("chat")
                 .whereEqualTo("dayNumber", currentDay)
@@ -1311,6 +1382,37 @@ public class GameActivity extends AppCompatActivity {
             chatListener.remove();
             chatListener = null;
         }
+        chatAdapter.setChannelFilter(null);
+        chatAdapter.clear();
+    }
+
+    private void startMafiaChatListener() {
+        if (mafiaChatListener != null) return;
+        chatAdapter.clear();
+        chatAdapter.setChannelFilter("mafia");
+        mafiaChatListener = db.collection("games").document(roomId)
+                .collection("chat")
+                .whereEqualTo("channel", "mafia")
+                .orderBy("timestamp")
+                .addSnapshotListener((snapshots, error) -> {
+                    if (error != null || snapshots == null) return;
+                    List<ChatMessage> msgs = new ArrayList<>();
+                    for (com.google.firebase.firestore.DocumentSnapshot doc : snapshots.getDocuments()) {
+                        ChatMessage msg = doc.toObject(ChatMessage.class);
+                        if (msg != null) msgs.add(msg);
+                    }
+                    chatAdapter.setMessages(msgs);
+                    if (!msgs.isEmpty()) chatRecyclerView.scrollToPosition(msgs.size() - 1);
+                });
+    }
+
+    private void stopMafiaChatListener() {
+        if (mafiaChatListener != null) {
+            mafiaChatListener.remove();
+            mafiaChatListener = null;
+        }
+        mafiaChatVisible = false;
+        chatAdapter.setChannelFilter(null);
         chatAdapter.clear();
     }
 
@@ -1319,10 +1421,49 @@ public class GameActivity extends AppCompatActivity {
         String text = chatInput.getText() != null ? chatInput.getText().toString().trim() : "";
         if (text.isEmpty()) return;
         chatInput.setText("");
+
+        if ("mafia".equals(chatPanel.getTag())) {
+            sendMafiaChatMessage(text);
+        } else {
+            ChatMessage msg = new ChatMessage(
+                    currentUser.getUid(), myName, text, myPhotoBase64, currentDay, !isAlive, "public");
+            db.collection("games").document(roomId).collection("chat").add(msg)
+                    .addOnFailureListener(e -> Toast.makeText(this, "Ошибка отправки", Toast.LENGTH_SHORT).show());
+        }
+    }
+
+    private void sendMafiaChatMessage(String text) {
         ChatMessage msg = new ChatMessage(
-                currentUser.getUid(), myName, text, myPhotoBase64, currentDay, !isAlive);
+                currentUser.getUid(), myName, text, myPhotoBase64, currentDay, false, "mafia");
         db.collection("games").document(roomId).collection("chat").add(msg)
                 .addOnFailureListener(e -> Toast.makeText(this, "Ошибка отправки", Toast.LENGTH_SHORT).show());
+    }
+
+    // ── Heartbeat (Feature 1: Disconnect Handling) ─────────────
+
+    private void startHeartbeat() {
+        heartbeatHandler = new Handler();
+        heartbeatRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (roomId != null && db != null && isAlive) {
+                    db.collection("games").document(roomId)
+                            .update("players." + currentUser.getUid() + ".lastHeartbeat",
+                                    System.currentTimeMillis())
+                            .addOnFailureListener(e -> Log.w(TAG, "Heartbeat failed", e));
+                }
+                heartbeatHandler.postDelayed(this, HEARTBEAT_INTERVAL_MS);
+            }
+        };
+        heartbeatHandler.postDelayed(heartbeatRunnable, HEARTBEAT_INTERVAL_MS);
+    }
+
+    private void stopHeartbeat() {
+        if (heartbeatHandler != null && heartbeatRunnable != null) {
+            heartbeatHandler.removeCallbacks(heartbeatRunnable);
+        }
+        heartbeatHandler = null;
+        heartbeatRunnable = null;
     }
 
     // ── Lifecycle ─────────────────────────────────────────────────
@@ -1348,10 +1489,12 @@ public class GameActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         stopGameMusic();
+        stopHeartbeat();
         super.onDestroy();
         if (gameListener != null) gameListener.remove();
         if (perksListener != null) perksListener.remove();
         stopChatListener();
+        stopMafiaChatListener();
         cancelTimer();
     }
 
@@ -1447,12 +1590,14 @@ public class GameActivity extends AppCompatActivity {
     @Override
     public void onBackPressed() {
         stopGameMusic();
+        stopHeartbeat();
         MafiaDialogs.confirm(this,
                 "Выйти из игры?",
                 "Вы действительно хотите покинуть игру?",
                 "ВЫЙТИ", "ОСТАТЬСЯ",
                 () -> {
                     if (gameListener != null) gameListener.remove();
+                    stopMafiaChatListener();
                     cancelTimer();
                     super.onBackPressed();
                 }, null);

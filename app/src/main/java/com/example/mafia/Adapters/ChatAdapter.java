@@ -22,16 +22,21 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * ChatAdapter с поддержкой ghost-чата (мёртвые <-> мёртвые).
+ * ChatAdapter с поддержкой ghost-чата (мёртвые <-> мёртвые) и каналов (public/mafia).
  *
  * Правила видимости:
  *  - Живой игрок: видит ТОЛЬКО сообщения с isGhost==false
  *  - Мёртвый игрок: видит ВСЕ сообщения, но ghost-сообщения выделены особо
  *
+ * Фильтр каналов:
+ *  - filterChannel == null → показывать все (дневной чат)
+ *  - filterChannel == "public" или "mafia" → показывать только сообщения этого канала
+ *
  * Визуальное разделение:
  *  - Обычные сообщения — стандартный тёмный пузырь (как раньше)
  *  - Ghost-сообщения своих (isMine+isGhost) — полупрозрачный фиолетовый пузырь справа
  *  - Ghost-сообщения других (isGhost, !isMine) — фиолетовый пузырь слева + 💀 перед именем
+ *  - Mafia-сообщения (channel=mafia) — красноватый пузырь
  */
 public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder> {
 
@@ -40,6 +45,8 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
 
     private final List<ChatMessage> allMessages = new ArrayList<>();   // все входящие
     private final List<ChatMessage> visibleMessages = new ArrayList<>(); // то, что показываем
+
+    private String filterChannel = null; // null = show all, "public" or "mafia" = filter
 
     private static final SimpleDateFormat TIME_FMT =
             new SimpleDateFormat("HH:mm", Locale.getDefault());
@@ -50,8 +57,20 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
     private static final int GHOST_TEXT     = 0xFFD9A0FF;   // сиреневый текст
     private static final int GHOST_NAME     = 0xFFB060FF;   // фиолетовый для имени
 
+    // Цвета mafia-чата
+    private static final int MAFIA_BG_MINE  = 0xCC5C1010;   // тёмно-красный, свои
+    private static final int MAFIA_BG_OTHER = 0xCC3A0808;   // ещё темнее, чужие
+    private static final int MAFIA_TEXT     = 0xFFFFB3B3;   // светло-красный текст
+    private static final int MAFIA_NAME     = 0xFFFF6666;   // красный для имени
+
     public ChatAdapter(String myUid) {
         this.myUid = myUid;
+    }
+
+    /** Установить фильтр по каналу. null = показать все. */
+    public void setChannelFilter(String channel) {
+        this.filterChannel = channel;
+        rebuildVisible();
     }
 
     /** Вызывать при изменении статуса живой/мёртвый. */
@@ -88,8 +107,13 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
         notifyDataSetChanged();
     }
 
-    /** Живой видит только живые сообщения. Мёртвый — все. */
+    /** Живой видит только живые сообщения. Мёртвый — все. + фильтр канала. */
     private boolean shouldShow(ChatMessage msg) {
+        // Фильтр по каналу
+        if (filterChannel != null) {
+            String ch = msg.getChannel();
+            if (ch == null || !ch.equals(filterChannel)) return false;
+        }
         if (viewerIsAlive) {
             return !msg.isGhost();          // живые не видят ghost
         }
@@ -133,12 +157,15 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
         void bind(ChatMessage msg) {
             boolean isMine  = myUid.equals(msg.getUid());
             boolean isGhost = msg.isGhost();
+            boolean isMafia = "mafia".equals(msg.getChannel());
 
             messageText.setText(msg.getText());
             timeText.setText(TIME_FMT.format(new Date(msg.getTimestamp())));
 
             if (isGhost) {
                 bindGhost(msg, isMine);
+            } else if (isMafia) {
+                bindMafia(msg, isMine);
             } else {
                 bindNormal(msg, isMine);
             }
@@ -163,6 +190,35 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
                 messageText.setTextColor(0xFFDDDDDD);
                 timeText.setTextColor(0xFF777777);
                 loadAvatar(msg.getPhotoBase64());
+            }
+        }
+
+        // ── Mafia сообщение (ночной чат мафии) ───────────────────────────
+        private void bindMafia(ChatMessage msg, boolean isMine) {
+            android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
+            bg.setCornerRadius(18f);
+            bg.setStroke(2, 0xFFB71C1C);
+
+            if (isMine) {
+                bubbleContainer.setGravity(Gravity.END);
+                nameText.setVisibility(View.GONE);
+                avatar.setVisibility(View.GONE);
+                bg.setColor(MAFIA_BG_MINE);
+                bubble.setBackground(bg);
+                messageText.setTextColor(MAFIA_TEXT);
+                timeText.setTextColor(0xAAB71C1C);
+            } else {
+                bubbleContainer.setGravity(Gravity.START);
+                nameText.setVisibility(View.VISIBLE);
+                nameText.setText("🔫 " + msg.getName());
+                nameText.setTextColor(MAFIA_NAME);
+                avatar.setVisibility(View.VISIBLE);
+                bg.setColor(MAFIA_BG_OTHER);
+                bubble.setBackground(bg);
+                messageText.setTextColor(MAFIA_TEXT);
+                timeText.setTextColor(0xAAB71C1C);
+                loadAvatar(msg.getPhotoBase64());
+                avatar.setAlpha(0.85f);
             }
         }
 

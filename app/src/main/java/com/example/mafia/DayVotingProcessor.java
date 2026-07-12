@@ -20,6 +20,7 @@ import static com.example.mafia.NightResultProcessor.isAlive;
  * Изменения:
  *  1. При казни записывает deathPosition игрока.
  *  2. В lastVoteResult добавляется executedPlayerPhoto.
+ *  3. Chain death from lover pair after execution.
  */
 public class DayVotingProcessor {
 
@@ -39,6 +40,17 @@ public class DayVotingProcessor {
     public static VoteResult resolve(Map<String, Object> players,
                                      Map<String, Object> dayVotes,
                                      int currentDayNumber) {
+        return resolve(players, dayVotes, currentDayNumber, null);
+    }
+
+    /**
+     * @param gameData  полный документ игры для чтения loverPair (может быть null).
+     */
+    @SuppressWarnings("unchecked")
+    public static VoteResult resolve(Map<String, Object> players,
+                                     Map<String, Object> dayVotes,
+                                     int currentDayNumber,
+                                     Map<String, Object> gameData) {
         VoteResult result = new VoteResult();
         if (players == null) players = new HashMap<>();
 
@@ -95,6 +107,11 @@ public class DayVotingProcessor {
             result.executedPlayerName = getPlayerName(topTarget, players);
             result.executedPlayerRole = getPlayerRole(topTarget, players);
             result.executedPlayerPhoto= getPlayerPhoto(topTarget, players);
+        }
+
+        // Chain death from lover pair (after execution death, before win check)
+        if (gameData != null) {
+            NightResultProcessor.applyLoverChainDeath(updatedPlayers, updates, gameData);
         }
 
         String winner = checkWinCondition(updatedPlayers);

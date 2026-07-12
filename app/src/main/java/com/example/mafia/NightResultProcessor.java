@@ -49,6 +49,8 @@ public class NightResultProcessor {
      * @param perksData  устарело, оставлено для совместимости; теперь плюшки
      *                   читаются прямо из players.{uid}.activePerk_* (второй аргумент — тот же map).
      *                   Передавайте null или тот же players — не важно.
+     *                   Начиная с версии Lover Role, этот параметр также используется как
+     *                   полный gameData для чтения loverPair.
      */
     @SuppressWarnings("unchecked")
     public static NightResult resolve(Map<String, Object> players,
@@ -129,6 +131,9 @@ public class NightResultProcessor {
             result.wasKillBlocked = true;
         }
 
+        // 5b. Chain death from lover pair (after main death, before win check)
+        applyLoverChainDeath(updatedPlayers, updates, perksData);
+
         // 6. Сбрасываем флаги активных плюшек в документе игры и планируем списание
 
         // Невидимка — расходуется у всех игроков с activePerk_invisible (ночь прошла)
@@ -175,6 +180,7 @@ public class NightResultProcessor {
         emptyNightActions.put("mafia", new HashMap<String, String>());
         emptyNightActions.put("doctor", null);
         emptyNightActions.put("sheriff", null);
+        emptyNightActions.put("lover", null);
         updates.put("nightActions", emptyNightActions);
         updates.put("nightStage", "mafia");
 
@@ -193,6 +199,58 @@ public class NightResultProcessor {
 
         result.updates = updates;
         return result;
+    }
+
+    // ── Lover chain death (shared between Night and Day processors) ──
+
+    /**
+     * If loverPair exists and one member is dead, kill the other (chain death).
+     * Operates on updatedPlayers (deep copy) and adds to updates map.
+     * Clears loverPair in updates after chain death.
+     */
+    @SuppressWarnings("unchecked")
+    public static void applyLoverChainDeath(Map<String, Object> updatedPlayers,
+                                            Map<String, Object> updates,
+                                            Map<String, Object> gameData) {
+        if (gameData == null) return;
+        List<String> loverPair = null;
+        Object lpObj = gameData.get("loverPair");
+        if (lpObj instanceof List) {
+            loverPair = new ArrayList<>((List<String>) lpObj);
+        }
+        if (loverPair == null || loverPair.size() != 2) return;
+        if (loverPair.get(0) == null || loverPair.get(1) == null) return;
+
+        for (int i = 0; i < 2; i++) {
+            String uid1 = loverPair.get(i);
+            Map<String, Object> p1 = asMap(updatedPlayers.get(uid1));
+            if (p1 == null) continue;
+            if (!isAlive(p1.get("alive"))) {
+                // This one is dead, kill the other
+                String uid2 = loverPair.get(1 - i);
+                Map<String, Object> p2 = asMap(updatedPlayers.get(uid2));
+                if (p2 == null || !isAlive(p2.get("alive"))) continue;
+
+                int newDeathPos = 0;
+                for (Map.Entry<String, Object> e : updatedPlayers.entrySet()) {
+                    Map<String, Object> pd = asMap(e.getValue());
+                    if (pd == null) continue;
+                    Object dp = pd.get("deathPosition");
+                    if (dp instanceof Number && ((Number) dp).intValue() > 0) newDeathPos++;
+                }
+                newDeathPos++;
+
+                p2.put("alive", false);
+                p2.put("deathPosition", newDeathPos);
+                updatedPlayers.put(uid2, p2);
+                updates.put("players." + uid2 + ".alive", false);
+                updates.put("players." + uid2 + ".deathPosition", newDeathPos);
+
+                // Clear the pair
+                updates.put("loverPair", new ArrayList<>());
+                break; // Only one chain death per resolve
+            }
+        }
     }
 
     /** Находит жертву мафии, пропуская игроков с activePerk_invisible. */
