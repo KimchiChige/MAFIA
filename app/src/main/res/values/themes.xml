@@ -7,12 +7,17 @@
 
     <style name="Theme.MAFIA" parent="Base.Theme.MAFIA" />
 
-    <!-- Стиль для кастомных диалогов — прозрачный фон чтобы работал наш bg_dialog.xml -->
+    <!-- Единый стиль для ВСЕХ диалогов MAFIA.
+         Прозрачный фон окна — реальный фон задаёт bg_dialog_mafia.xml в layout-е.
+         windowMinWidthMinor ограничивает ширину диалога на планшетах. -->
     <style name="MafiaDialog" parent="Theme.MaterialComponents.Dialog">
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:windowIsFloating">true</item>
+        <item name="android:windowMinWidthMinor">85%</item>
+        <item name="android:windowNoTitle">true</item>
         <item name="colorPrimary">#8B0000</item>
         <item name="colorAccent">#8B0000</item>
+        <item name="android:textColorPrimary">#FFFFFF</item>
     </style>
 
 </resources>

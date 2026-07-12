@@ -566,26 +566,23 @@ public class LobbyActivity extends AppCompatActivity {
         }
 
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Удаление комнаты");
-        builder.setMessage("Вы уверены, что хотите удалить эту комнату?");
+        MafiaDialogs.confirm(this,
+                "Удаление комнаты",
+                "Вы уверены, что хотите удалить эту комнату?",
+                "УДАЛИТЬ", "ОТМЕНА",
+                () -> {
+                    FirebaseFirestore.getInstance()
+                            .collection("rooms")
+                            .document(roomId)
+                            .delete()
+                            .addOnSuccessListener(aVoid ->
+                                    Toast.makeText(this, "Комната удалена", Toast.LENGTH_SHORT).show())
+                            .addOnFailureListener(e ->
+                                    Toast.makeText(this, "Ошибка удаления: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                },
+                () -> {
 
-        builder.setPositiveButton("Удалить", (dialog, which) -> {
-            FirebaseFirestore.getInstance()
-                    .collection("rooms")
-                    .document(roomId)
-                    .delete()
-                    .addOnSuccessListener(aVoid -> {
-                        Toast.makeText(this, "Комната удалена", Toast.LENGTH_SHORT).show();
-                    })
-                    .addOnFailureListener(e -> {
-                        Toast.makeText(this, "Ошибка удаления: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                        Log.e("DELETE_ROOM", "Error: ", e);
-                    });
-        });
-
-        builder.setNegativeButton("Отмена", (dialog, which) -> {
-            dialog.dismiss();
-        });
+                });
 
         builder.create().show();
     }

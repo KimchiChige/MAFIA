@@ -79,12 +79,11 @@ public class ShopActivity extends AppCompatActivity {
     }
 
     private void confirmPurchase(String perkType, String perkName, long cost) {
-        new AlertDialog.Builder(this, R.style.MafiaDialog)
-                .setTitle("Купить «" + perkName + "»?")
-                .setMessage("Стоимость: " + cost + " 💎\n\nЭта плюшка будет добавлена в ваш инвентарь.")
-                .setPositiveButton("КУПИТЬ", (d, w) -> doPurchase(perkType, perkName, cost))
-                .setNegativeButton("ОТМЕНА", null)
-                .show();
+        MafiaDialogs.confirm(this,
+                "Купить «" + perkName + "»?",
+                "Стоимость: " + cost + " 💎\n\nЭта плюшка будет добавлена в ваш инвентарь.",
+                "КУПИТЬ", "ОТМЕНА",
+                () -> doPurchase(perkType, perkName, cost), null);
     }
 
     private void doPurchase(String perkType, String perkName, long cost) {
@@ -103,16 +102,12 @@ public class ShopActivity extends AppCompatActivity {
     }
 
     private void showNotEnoughDialog(long cost) {
-        new AlertDialog.Builder(this, R.style.MafiaDialog)
-                .setTitle("Недостаточно алмазов 💎")
-                .setMessage("Для покупки нужно " + cost + " 💎.\n\nСыграйте ещё несколько игр, чтобы накопить нужную сумму!")
-                .setPositiveButton("СЫГРАТЬ", (d, w) -> {
-                    finish(); // возврат в лобби
-                })
-                .setNegativeButton("ЗАКРЫТЬ", null)
-                .show();
+        MafiaDialogs.confirm(this,
+                "Недостаточно алмазов 💎",
+                "Для покупки нужно " + cost + " 💎.\n\nСыграйте ещё несколько игр, чтобы накопить нужную сумму!",
+                "СЫГРАТЬ", "ЗАКРЫТЬ",
+                () -> finish(), null);
     }
-
     @Override
     protected void onDestroy() {
         super.onDestroy();

@@ -342,30 +342,27 @@ public class GameActivity extends AppCompatActivity {
     // ── Клики по плюшкам ─────────────────────────────────────────
 
     private void onPerkShieldClick() {
-        new AlertDialog.Builder(this, R.style.MafiaDialog)
-                .setTitle("🛡️ Активировать Щит?")
-                .setMessage("Если этой ночью мафия выберет вас жертвой — атака будет заблокирована.\n\nПлюшка расходуется только если мафия реально атаковала вас.")
-                .setPositiveButton("АКТИВИРОВАТЬ", (d, w) -> activatePerkInGame("shield"))
-                .setNegativeButton("ОТМЕНА", null)
-                .show();
+        MafiaDialogs.confirm(this,
+                "🛡️ Активировать Щит?",
+                "Если этой ночью мафия выберет вас жертвой — атака будет заблокирована.\n\nПлюшка расходуется только если мафия реально атаковала вас.",
+                "АКТИВИРОВАТЬ", "ОТМЕНА",
+                () -> activatePerkInGame("shield"), null);
     }
 
     private void onPerkSelfhealClick() {
-        new AlertDialog.Builder(this, R.style.MafiaDialog)
-                .setTitle("💊 Активировать Самолечение?")
-                .setMessage("Вы сможете выбрать себя как доктор этой ночью.\n\nПлюшка расходуется только если вы вылечили себя.")
-                .setPositiveButton("АКТИВИРОВАТЬ", (d, w) -> activatePerkInGame("selfheal"))
-                .setNegativeButton("ОТМЕНА", null)
-                .show();
+        MafiaDialogs.confirm(this,
+                "💊 Активировать Самолечение?",
+                "Вы сможете выбрать себя как доктор этой ночью.\n\nПлюшка расходуется только если вы вылечили себя.",
+                "АКТИВИРОВАТЬ", "ОТМЕНА",
+                () -> activatePerkInGame("selfheal"), null);
     }
 
     private void onPerkInvisibleClick() {
-        new AlertDialog.Builder(this, R.style.MafiaDialog)
-                .setTitle("👁️ Активировать Невидимку?")
-                .setMessage("Мафия не сможет выбрать вас жертвой этой ночью.\n\nПлюшка расходуется по окончании ночи.")
-                .setPositiveButton("АКТИВИРОВАТЬ", (d, w) -> activatePerkInGame("invisible"))
-                .setNegativeButton("ОТМЕНА", null)
-                .show();
+        MafiaDialogs.confirm(this,
+                "👁️ Активировать Невидимку?",
+                "Мафия не сможет выбрать вас жертвой этой ночью.\n\nПлюшка расходуется по окончании ночи.",
+                "АКТИВИРОВАТЬ", "ОТМЕНА",
+                () -> activatePerkInGame("invisible"), null);
     }
 
     /**
@@ -572,8 +569,7 @@ public class GameActivity extends AppCompatActivity {
         }
     }
 
-    /** Открывает диалог выбора цели реанимации. */
-    /** Открывает диалог выбора цели реанимации. */
+    /** Открывает диалог выбора цели реанимации — карточки с закруглёнными краями. */
     private void showResurrectDialog() {
         if (!canUseResurrect()) {
             if (!myIsPremium) {
@@ -584,59 +580,24 @@ public class GameActivity extends AppCompatActivity {
             return;
         }
 
-        // ── Собираем список мёртвых игроков ────────────────────────────────
-        // Если Я ЖИВ — себя в список не добавляем (реанимировать живого некого).
-        // Если Я МЁРТВ — себя добавляем первым пунктом.
-        List<Player> deadOthers = new ArrayList<>();
-        Player me = null;
+        // Собираем список мёртвых игроков. Если я мёртв — себя добавляем (он будет
+        // подсвечен оранжевой рамкой в MafiaDialogs). Если я жив — себя исключаем.
+        List<Player> targets = new ArrayList<>();
         for (Player p : playersList) {
             if (p.isAlive()) continue;
-            if (p.getId().equals(currentUser.getUid())) {
-                if (!isAlive) me = p;   // себя добавляем в опции только если я тоже мёртв
-            } else {
-                deadOthers.add(p);
-            }
+            if (p.getId().equals(currentUser.getUid()) && isAlive) continue; // себя-живого не добавляем
+            targets.add(p);
         }
 
-        final List<String> labels = new ArrayList<>();
-        final List<String> ids    = new ArrayList<>();
-        if (me != null) {
-            labels.add("🔁 Реанимировать себя");
-            ids.add(me.getId());
-        }
-        for (Player p : deadOthers) {
-            labels.add("💀 " + p.getName());
-            ids.add(p.getId());
-        }
-
-        if (labels.isEmpty()) {
+        if (targets.isEmpty()) {
             Toast.makeText(this, "Некого реанимировать", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // ⚠️ ВАЖНО: используем кастомный ListView через setView() вместо setItems().
-        // Раньше здесь было setMessage() + setItems() — в androidx.appcompat.app.AlertDialog
-        // (тема Material3) такая комбинация НЕ рендерит список: видно только текст-сообщение,
-        // а пункты с именами игроков не отображаются и не нажимаются. ListView гарантирует,
-        // что список виден и кликабелен в любой теме.
-        ListView listView = new ListView(this);
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(
-                this, android.R.layout.simple_list_item_1, labels);
-        listView.setAdapter(adapter);
-
-        final AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle("💫 Реанимация — кого вернуть в игру? (1 раз за игру)")
-                .setView(listView)
-                .setNegativeButton("Отмена", null)
-                .create();
-
-        listView.setOnItemClickListener((parent, view, position, id) -> {
-            String targetUid = ids.get(position);
-            dialog.dismiss();
-            confirmResurrect(targetUid);
-        });
-
-        dialog.show();
+        MafiaDialogs.resurrectTargets(this, currentUser.getUid(),
+                "💫 Кого вернуть в игру? (1 раз за игру)",
+                targets,
+                player -> confirmResurrect(player.getId()));
     }
 
     private void confirmResurrect(String targetUid) {
@@ -664,61 +625,26 @@ public class GameActivity extends AppCompatActivity {
 
     /** Диалог для реанимированного игрока — кого назвать мафией (необязательно правда). */
     private void showRevealChoiceDialog() {
-        List<Player> others = new ArrayList<>();
-        for (Player p : playersList) {
-            if (!p.getId().equals(currentUser.getUid())) others.add(p);
-        }
+        if (playersList == null || playersList.isEmpty()) return;
 
-        if (others.isEmpty()) return; // некого называть — выходим
-
-        final List<String> names = new ArrayList<>();
-        final List<String> ids   = new ArrayList<>();
-        for (Player p : others) {
-            names.add(p.getName());
-            ids.add(p.getId());
-        }
-
-        // Тот же фикс, что и в showResurrectDialog(): setItems() + setMessage()
-        // вместе не работают в AppCompat/Material AlertDialog — используем ListView.
-        ListView listView = new ListView(this);
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(
-                this, android.R.layout.simple_list_item_1, names);
-        listView.setAdapter(adapter);
-
-        final AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle("🔮 Вы восстали! Кого назвать мафией?\n(можно сказать неправду)")
-                .setView(listView)
-                .setCancelable(false)
-                .create();
-
-        listView.setOnItemClickListener((parent, view, position, id) -> {
-            String targetUid  = ids.get(position);
-            String targetName = names.get(position);
-            dialog.dismiss();
-            PremiumManager.revealAsMafia(db, roomId,
-                    currentUser.getUid(), myName,
-                    targetUid, targetName);
-        });
-
-        dialog.show();
+        MafiaDialogs.revealTargets(this, currentUser.getUid(),
+                "🔮 Вы восстали! Кого назвать мафией?",
+                playersList,
+                player -> PremiumManager.revealAsMafia(db, roomId,
+                        currentUser.getUid(), myName,
+                        player.getId(), player.getName()));
     }
 
     /** Всплывающее окно для ВСЕХ игроков при новом "разоблачении" от реанимированного. */
     private void showResurrectRevealDialog(String revealerName, String targetName) {
-        new AlertDialog.Builder(this)
-                .setTitle("💀 Реанимированный игрок говорит!")
-                .setMessage("Игрок " + revealerName + " (реанимированный) считает, что " +
+        MafiaDialogs.alert(this,
+                "💀 Реанимированный игрок говорит!",
+                "Игрок " + revealerName + " (реанимированный) считает, что " +
                         targetName + " — мафия!\n\n" +
-                        "⚠️ Помни: реанимированный может говорить неправду!")
-                .setPositiveButton("Понял(а)", null)
-                .show();
+                        "⚠️ Помни: реанимированный может говорить неправду!",
+                "ПОНЯЛ(А)", null);
     }
 
-    /**
-     * Маркетинг: предложение купить Premium сразу после смерти игрока —
-     * только если он не Premium и не имеет доступного пробника (иначе он
-     * и так видит кнопку реанимации, повторное предложение было бы лишним).
-     */
     private void showDeathPremiumOfferIfEligible() {
         if (myIsPremium || myTrialAvailableInGame) return;
 
@@ -1374,15 +1300,14 @@ public class GameActivity extends AppCompatActivity {
     @Override
     public void onBackPressed() {
         stopGameMusic();
-        new AlertDialog.Builder(this)
-                .setTitle("Выйти из игры?")
-                .setMessage("Вы действительно хотите покинуть игру?")
-                .setPositiveButton("Выйти", (dialog, which) -> {
+        MafiaDialogs.confirm(this,
+                "Выйти из игры?",
+                "Вы действительно хотите покинуть игру?",
+                "ВЫЙТИ", "ОСТАТЬСЯ",
+                () -> {
                     if (gameListener != null) gameListener.remove();
                     cancelTimer();
                     super.onBackPressed();
-                })
-                .setNegativeButton("Остаться", null)
-                .show();
+                }, null);
     }
 }

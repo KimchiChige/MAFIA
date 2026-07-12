@@ -678,21 +678,21 @@ public class RoomActivity extends AppCompatActivity {
     }
 
     private void showLeaveConfirmation() {
-        new AlertDialog.Builder(this)
-                .setTitle("Покинуть комнату")
-                .setMessage("Вы уверены, что хотите покинуть комнату?")
-                .setPositiveButton("Да", (dialog, which) -> leaveRoom())
-                .setNegativeButton("Нет", null)
-                .show();
+        MafiaDialogs.confirm(this,
+                "Покинуть комнату",
+                "Вы уверены, что хотите покинуть комнату?",
+                "ДА", "НЕТ",
+                () -> leaveRoom(), null);
     }
 
     private void showRoomDeletedDialog() {
-        new AlertDialog.Builder(this)
-                .setTitle("Комната удалена")
-                .setMessage("Создатель удалил эту комнату")
-                .setPositiveButton("ОК", (dialog, which) -> finish())
-                .setCancelable(false)
-                .show();
+        AlertDialog dialog = MafiaDialogs.alert(this,
+                "Комната удалена",
+                "Создатель удалил эту комнату",
+                "ОК",
+                () -> finish());
+        dialog.setCancelable(false);
+        dialog.setCanceledOnTouchOutside(false);
     }
 
     private void showLoading(boolean show) {

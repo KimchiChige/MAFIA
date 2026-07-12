@@ -59,10 +59,10 @@
                         android:layout_width="22dp"
                         android:layout_height="22dp"
                         android:layout_gravity="top|end"
-                        android:layout_marginTop="-8dp"
-                        android:layout_marginEnd="-8dp"
+                        android:layout_marginTop="-12dp"
+                        android:layout_marginEnd="8dp"
                         android:gravity="center"
-                        android:textSize="15sp"
+                        android:textSize="10sp"
                         android:visibility="gone" />
                 </FrameLayout>
 
