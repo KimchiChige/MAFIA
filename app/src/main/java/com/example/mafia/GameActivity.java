@@ -9,6 +9,7 @@ import android.view.View;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
 import android.widget.Button;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -37,6 +38,9 @@ import java.util.List;
 import java.util.Map;
 
 import android.media.MediaPlayer;
+import android.view.ViewGroup;
+import android.view.ViewParent;
+import android.view.animation.AccelerateDecelerateInterpolator;
 
 public class GameActivity extends AppCompatActivity {
 
@@ -125,6 +129,7 @@ public class GameActivity extends AppCompatActivity {
     private boolean dayTimerStarted = false;
     private String timerForStage = null;
     private long phaseStartAt = 0; // таймстамп начала текущей фазы из Firestore
+    private View currentNotificationView = null;
 
     // Самолечение: если активна плюшка самолечения, доктор может выбрать себя
     private boolean selfhealUnlocked = false;
@@ -446,7 +451,9 @@ public class GameActivity extends AppCompatActivity {
         }
 
         if (newPhase != null && !newPhase.equals(currentPhase)) {
+            String oldPhase = currentPhase;
             resetPhaseState();
+            showPhaseNotification(oldPhase, newPhase);
         }
         if (newNightStage != null && !newNightStage.equals(nightStage)) {
             hasActed = false;
@@ -1346,6 +1353,95 @@ public class GameActivity extends AppCompatActivity {
         if (perksListener != null) perksListener.remove();
         stopChatListener();
         cancelTimer();
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Внутриигровые уведомления (slide-in сверху)
+    // ─────────────────────────────────────────────────────────────
+
+    private void showPhaseNotification(String oldPhase, String newPhase) {
+        if ("".equals(oldPhase) || newPhase == null) return;
+        if ("ended".equals(newPhase)) return;
+
+        String emoji, title, text;
+        switch (newPhase) {
+            case "night":
+                emoji = "\uD83C\uDF19";
+                title = "Ночь наступает";
+                text = "Город засыпает...";
+                break;
+            case "day":
+                emoji = "\u2600\uFE0F";
+                title = "Рассвет";
+                text = "Город просыпается, время обсуждения";
+                break;
+            case "voting":
+                emoji = "\uD83D\uDDF3\uFE0F";
+                title = "Голосование";
+                text = "Пора принять решение!";
+                break;
+            default:
+                return;
+        }
+        showNotificationBanner(emoji, title, text);
+    }
+
+    private void showNotificationBanner(String emoji, String title, String text) {
+        removeNotificationBanner();
+
+        View banner = getLayoutInflater().inflate(R.layout.notification_phase, null);
+        TextView tvTitle = banner.findViewById(R.id.notificationTitle);
+        TextView tvText  = banner.findViewById(R.id.notificationText);
+        TextView tvEmoji = banner.findViewById(R.id.notificationEmoji);
+
+        tvTitle.setText(title);
+        tvText.setText(text);
+        tvEmoji.setText(emoji);
+
+        FrameLayout root = findViewById(android.R.id.content);
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        );
+        lp.topMargin = 8;
+        banner.setLayoutParams(lp);
+        root.addView(banner);
+
+        banner.setTranslationY(-banner.getHeight() - 50);
+        banner.setAlpha(0f);
+
+        currentNotificationView = banner;
+
+        banner.animate()
+                .translationY(0)
+                .alpha(1f)
+                .setDuration(450)
+                .setInterpolator(new AccelerateDecelerateInterpolator())
+                .start();
+
+        banner.postDelayed(() -> {
+            if (currentNotificationView == banner) {
+                removeNotificationBanner();
+            }
+        }, 3000);
+    }
+
+    private void removeNotificationBanner() {
+        if (currentNotificationView == null) return;
+        View view = currentNotificationView;
+        currentNotificationView = null;
+        view.animate()
+                .translationY(-view.getHeight() - 50)
+                .alpha(0f)
+                .setDuration(350)
+                .setInterpolator(new AccelerateDecelerateInterpolator())
+                .withEndAction(() -> {
+                    ViewParent parent = view.getParent();
+                    if (parent instanceof ViewGroup) {
+                        ((ViewGroup) parent).removeView(view);
+                    }
+                })
+                .start();
     }
 
     @Override
