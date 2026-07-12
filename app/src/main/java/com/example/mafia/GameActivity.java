@@ -19,6 +19,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import android.widget.ArrayAdapter;
+import android.widget.ListView;
 
 import com.example.mafia.Adapters.ChatAdapter;
 import com.example.mafia.Adapters.PlayerActionAdapter;
@@ -571,6 +573,7 @@ public class GameActivity extends AppCompatActivity {
     }
 
     /** Открывает диалог выбора цели реанимации. */
+    /** Открывает диалог выбора цели реанимации. */
     private void showResurrectDialog() {
         if (!canUseResurrect()) {
             if (!myIsPremium) {
@@ -595,32 +598,45 @@ public class GameActivity extends AppCompatActivity {
             }
         }
 
-        int totalOptions = deadOthers.size() + (me != null ? 1 : 0);
-        if (totalOptions == 0) {
+        final List<String> labels = new ArrayList<>();
+        final List<String> ids    = new ArrayList<>();
+        if (me != null) {
+            labels.add("🔁 Реанимировать себя");
+            ids.add(me.getId());
+        }
+        for (Player p : deadOthers) {
+            labels.add("💀 " + p.getName());
+            ids.add(p.getId());
+        }
+
+        if (labels.isEmpty()) {
             Toast.makeText(this, "Некого реанимировать", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        String[] opts   = new String[totalOptions];
-        String[] optIds = new String[totalOptions];
-        int idx = 0;
-        if (me != null) {
-            opts[idx]   = "🔁 Реанимировать себя";
-            optIds[idx] = me.getId();
-            idx++;
-        }
-        for (Player p : deadOthers) {
-            opts[idx]   = "💀 " + p.getName();
-            optIds[idx] = p.getId();
-            idx++;
-        }
+        // ⚠️ ВАЖНО: используем кастомный ListView через setView() вместо setItems().
+        // Раньше здесь было setMessage() + setItems() — в androidx.appcompat.app.AlertDialog
+        // (тема Material3) такая комбинация НЕ рендерит список: видно только текст-сообщение,
+        // а пункты с именами игроков не отображаются и не нажимаются. ListView гарантирует,
+        // что список виден и кликабелен в любой теме.
+        ListView listView = new ListView(this);
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(
+                this, android.R.layout.simple_list_item_1, labels);
+        listView.setAdapter(adapter);
 
-        new AlertDialog.Builder(this)
-                .setTitle("💫 Реанимация (1 раз за игру)")
-                .setMessage("Выбери, кого вернуть в игру:")
-                .setItems(opts, (d, which) -> confirmResurrect(optIds[which]))
+        final AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("💫 Реанимация — кого вернуть в игру? (1 раз за игру)")
+                .setView(listView)
                 .setNegativeButton("Отмена", null)
-                .show();
+                .create();
+
+        listView.setOnItemClickListener((parent, view, position, id) -> {
+            String targetUid = ids.get(position);
+            dialog.dismiss();
+            confirmResurrect(targetUid);
+        });
+
+        dialog.show();
     }
 
     private void confirmResurrect(String targetUid) {
@@ -653,23 +669,38 @@ public class GameActivity extends AppCompatActivity {
             if (!p.getId().equals(currentUser.getUid())) others.add(p);
         }
 
-        String[] names = new String[others.size()];
-        String[] ids   = new String[others.size()];
-        for (int i = 0; i < others.size(); i++) {
-            names[i] = others.get(i).getName();
-            ids[i]   = others.get(i).getId();
+        if (others.isEmpty()) return; // некого называть — выходим
+
+        final List<String> names = new ArrayList<>();
+        final List<String> ids   = new ArrayList<>();
+        for (Player p : others) {
+            names.add(p.getName());
+            ids.add(p.getId());
         }
 
-        new AlertDialog.Builder(this)
-                .setTitle("🔮 Вы восстали! Кого назвать мафией?")
-                .setMessage("Это может быть неправдой — все увидят предупреждение об этом.")
-                .setItems(names, (d, which) -> {
-                    PremiumManager.revealAsMafia(db, roomId,
-                            currentUser.getUid(), myName,
-                            ids[which], names[which]);
-                })
+        // Тот же фикс, что и в showResurrectDialog(): setItems() + setMessage()
+        // вместе не работают в AppCompat/Material AlertDialog — используем ListView.
+        ListView listView = new ListView(this);
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(
+                this, android.R.layout.simple_list_item_1, names);
+        listView.setAdapter(adapter);
+
+        final AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("🔮 Вы восстали! Кого назвать мафией?\n(можно сказать неправду)")
+                .setView(listView)
                 .setCancelable(false)
-                .show();
+                .create();
+
+        listView.setOnItemClickListener((parent, view, position, id) -> {
+            String targetUid  = ids.get(position);
+            String targetName = names.get(position);
+            dialog.dismiss();
+            PremiumManager.revealAsMafia(db, roomId,
+                    currentUser.getUid(), myName,
+                    targetUid, targetName);
+        });
+
+        dialog.show();
     }
 
     /** Всплывающее окно для ВСЕХ игроков при новом "разоблачении" от реанимированного. */
