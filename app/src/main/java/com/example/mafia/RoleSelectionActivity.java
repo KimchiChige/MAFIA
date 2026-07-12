@@ -11,16 +11,6 @@ import androidx.cardview.widget.CardView;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
 
-/**
- * Экран выбора роли — работает в двух режимах:
- *  1) Premium-пользователь → обычный ежедневный лимит (3 раза в день)
- *  2) Пользователь с доступным пробным периодом (isPremium == false,
- *     trialGameAvailable == true) → одна разовая пробная попытка,
- *     маркетинговый ход для привлечения к покупке Premium
- *
- * Режим определяется автоматически при открытии экрана — RoomActivity
- * ничего специального передавать не должен.
- */
 public class RoleSelectionActivity extends AppCompatActivity {
 
     public static final int REQUEST_CODE = 4002;
@@ -29,9 +19,9 @@ public class RoleSelectionActivity extends AppCompatActivity {
     private String uid;
     private TextView usesLeftText;
 
-    private CardView roleMafiaCard, roleDoctorCard, roleSheriffCard, roleCivilianCard;
+    private CardView roleMafiaCard, roleDoctorCard, roleSheriffCard, roleLoverCard, roleCivilianCard;
 
-    private boolean isPremiumMode = false;   // true = обычный Premium, false = пробный период
+    private boolean isPremiumMode = false;
     private boolean isTrialMode   = false;
 
     @Override
@@ -54,7 +44,6 @@ public class RoleSelectionActivity extends AppCompatActivity {
         });
     }
 
-    /** Определяет, Premium это или пробный период, и обновляет счётчик попыток. */
     private void determineModeAndLoadUses() {
         db.collection("users").document(uid).get()
                 .addOnSuccessListener(doc -> {
@@ -107,9 +96,6 @@ public class RoleSelectionActivity extends AppCompatActivity {
         }
     }
 
-    /** Ни Premium, ни пробника нет — сюда попадать не должны (кнопка в RoomActivity
-     *  для этого случая открывает витрину покупки, а не этот экран), но на всякий
-     *  случай подстраховываемся. */
     private void showNotEligible() {
         Toast.makeText(this, "Функция доступна только с Premium", Toast.LENGTH_SHORT).show();
         setResult(RESULT_CANCELED);
@@ -120,12 +106,14 @@ public class RoleSelectionActivity extends AppCompatActivity {
         roleMafiaCard    = findViewById(R.id.roleMafiaButton);
         roleDoctorCard   = findViewById(R.id.roleDoctorButton);
         roleSheriffCard  = findViewById(R.id.roleSheriffButton);
+        roleLoverCard    = findViewById(R.id.roleLoverButton);
         roleCivilianCard = findViewById(R.id.roleCivilianButton);
         Button skipBtn   = findViewById(R.id.roleSkipButton);
 
         if (roleMafiaCard    != null) roleMafiaCard.setOnClickListener(v    -> selectRole("mafia"));
         if (roleDoctorCard   != null) roleDoctorCard.setOnClickListener(v   -> selectRole("doctor"));
         if (roleSheriffCard  != null) roleSheriffCard.setOnClickListener(v  -> selectRole("sheriff"));
+        if (roleLoverCard    != null) roleLoverCard.setOnClickListener(v    -> selectRole("lover"));
         if (roleCivilianCard != null) roleCivilianCard.setOnClickListener(v -> selectRole("civilian"));
         if (skipBtn != null) skipBtn.setOnClickListener(v -> {
             setResult(RESULT_CANCELED);
@@ -178,9 +166,8 @@ public class RoleSelectionActivity extends AppCompatActivity {
         }
     }
 
-    /** Визуально "гасит" карточки и блокирует клики, когда лимит выборов исчерпан. */
     private void disableRoleCards() {
-        CardView[] cards = { roleMafiaCard, roleDoctorCard, roleSheriffCard, roleCivilianCard };
+        CardView[] cards = { roleMafiaCard, roleDoctorCard, roleSheriffCard, roleLoverCard, roleCivilianCard };
         for (CardView card : cards) {
             if (card == null) continue;
             card.setAlpha(0.4f);
@@ -194,6 +181,7 @@ public class RoleSelectionActivity extends AppCompatActivity {
             case "mafia":   return "🔫";
             case "doctor":  return "💉";
             case "sheriff": return "🕵️";
+            case "lover":   return "💕";
             default:        return "👤";
         }
     }

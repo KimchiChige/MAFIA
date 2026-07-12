@@ -134,10 +134,11 @@
             android:layout_width="match_parent"
             android:layout_height="48dp"
             android:layout_marginTop="8dp"
-            android:text="🔒 Выбрать роль заранее"
+            android:text="Выбрать роль заранее"
             android:textColor="#FFFFFF"
             android:textSize="13sp"
-            app:backgroundTint="#8B0000"
+            android:background="@drawable/btn_mafia_final"
+            app:backgroundTint="@null"
             app:cornerRadius="8dp"
              />
 

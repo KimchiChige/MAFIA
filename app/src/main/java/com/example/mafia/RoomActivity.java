@@ -444,6 +444,7 @@ public class RoomActivity extends AppCompatActivity {
         java.util.Set<String> reservedMafia   = new java.util.HashSet<>();
         java.util.Set<String> reservedDoctor  = new java.util.HashSet<>();
         java.util.Set<String> reservedSheriff = new java.util.HashSet<>();
+        java.util.Set<String> reservedLover  = new java.util.HashSet<>();
         Map<String, String> chosenRoles = new HashMap<>();
 
         for (String uid : participants) {
@@ -464,19 +465,12 @@ public class RoomActivity extends AppCompatActivity {
                 continue;
             }
 
-            // ── ИСПРАВЛЕНО: раньше здесь была проверка isPremium == true, которая
-            // полностью игнорировала пользователей с ПРОБНЫМ выбором роли
-            // (useTrialRoleSelection пишет premiumChosenRole точно так же, как
-            // обычный Premium-выбор, но isPremium у таких игроков остаётся false).
-            // Сам факт, что chosenDate == today, уже подтверждает легитимность
-            // выбора — он был сохранён через транзакцию PremiumManager, неважно
-            // какую именно (useRoleSelection ИЛИ useTrialRoleSelection).
-
             Log.d(TAG, "Игрок " + uid + ": ЗАКРЕПЛЯЕМ роль " + chosenRole);
             chosenRoles.put(uid, chosenRole);
             if ("mafia".equals(chosenRole))   reservedMafia.add(uid);
             if ("doctor".equals(chosenRole))  reservedDoctor.add(uid);
             if ("sheriff".equals(chosenRole)) reservedSheriff.add(uid);
+            if ("lover".equals(chosenRole))  reservedLover.add(uid);
         }
 
         List<String> remaining = new ArrayList<>(participants);

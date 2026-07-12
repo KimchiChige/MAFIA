@@ -11,6 +11,7 @@ import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.os.Handler;
+import android.speech.tts.TextToSpeech;
 import android.util.Base64;
 import android.view.View;
 import android.view.animation.AccelerateInterpolator;
@@ -22,6 +23,8 @@ import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.resource.bitmap.CircleCrop;
+
+import java.util.Locale;
 
 public class NightResultActivity extends AppCompatActivity {
 
@@ -43,6 +46,10 @@ public class NightResultActivity extends AppCompatActivity {
     private CountDownTimer autoTimer;
     private static final int AUTO_PROCEED_SECONDS = 10;
     private boolean alreadyProceeded = false;
+
+    // ── TTS: басовый голос для оглашения смерти ──
+    private TextToSpeech deathTts;
+    private boolean ttsReady = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -76,6 +83,17 @@ public class NightResultActivity extends AppCompatActivity {
         continueButton      = findViewById(R.id.continueButton);
 
         continueButton.setOnClickListener(v -> proceedToGame());
+
+        // ── Инициализация TTS с низким басовым голосом ──
+        deathTts = new TextToSpeech(this, status -> {
+            if (status == TextToSpeech.SUCCESS) {
+                deathTts.setLanguage(Locale.forLanguageTag("ru-RU"));
+                // Понижаем тон и замедляем для басового эффекта
+                deathTts.setPitch(0.6f);
+                deathTts.setSpeechRate(0.75f);
+                ttsReady = true;
+            }
+        });
     }
 
     private void parseIntent() {
@@ -151,6 +169,9 @@ public class NightResultActivity extends AppCompatActivity {
                 .setInterpolator(new DecelerateInterpolator())
                 .start();
 
+        // ── Озвучка: "Игрок {имя} мёртв" басовым голосом ──
+        speakDeath(name);
+
         if (photoBase64 != null && !photoBase64.isEmpty()) {
             try {
                 byte[] bytes = Base64.decode(photoBase64, Base64.DEFAULT);
@@ -178,14 +199,9 @@ public class NightResultActivity extends AppCompatActivity {
         killedSubtitleText.animate().alpha(1f).setDuration(500).setStartDelay(300).start();
     }
 
-    /**
-     * Анимация красного креста: обе линии падают сверху на карточку (translateY от -300 до 0),
-     * полностью видимые сразу — эффект "падает с лица игрока на экран".
-     */
     private void animateCross() {
         int size = (int)(200 * getResources().getDisplayMetrics().density);
 
-        // Горизонтальная диагональ — сразу полной длины, падает сверху
         crossHorizontal.getLayoutParams().width = size;
         crossHorizontal.requestLayout();
         crossHorizontal.setAlpha(0.95f);
@@ -196,7 +212,6 @@ public class NightResultActivity extends AppCompatActivity {
                 .setInterpolator(new AccelerateInterpolator())
                 .start();
 
-        // Вертикальная диагональ — с небольшой задержкой
         new Handler().postDelayed(() -> {
             crossVertical.getLayoutParams().height = size;
             crossVertical.requestLayout();
@@ -283,9 +298,29 @@ public class NightResultActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * Озвучивает "Игрок {name} мёртв" низким басовым голосом.
+     * Если TTS ещё не инициализирован — повторит через 300мс (обычно успевает).
+     * Если на устройстве нет русского голоса — молчит (не крашит).
+     */
+    private void speakDeath(String name) {
+        if (deathTts == null) return;
+        if (!ttsReady) {
+            new Handler().postDelayed(() -> speakDeath(name), 300);
+            return;
+        }
+        String text = "Игрок " + name + " мёртв.";
+        deathTts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "death_announcement");
+    }
+
     @Override public void onBackPressed() { }
     @Override protected void onDestroy() {
         super.onDestroy();
         if (autoTimer != null) autoTimer.cancel();
+        if (deathTts != null) {
+            deathTts.stop();
+            deathTts.shutdown();
+            deathTts = null;
+        }
     }
 }
