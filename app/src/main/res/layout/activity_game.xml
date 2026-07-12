@@ -1,6 +1,7 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:background="@drawable/bg_gradient">
     <!--  ── Экран показа роли (появляется первым) ───────────────  -->
     <LinearLayout
@@ -173,6 +174,7 @@
                 android:backgroundTint="#1B3A2D"
                 android:enabled="false"
                 android:text="🛡️ x0"
+                app:backgroundTint="@null"
                 android:textColor="#FFFFFF"
                 android:textSize="12sp" />
 
@@ -185,6 +187,7 @@
                 android:background="@drawable/btn_mafia_final"
                 android:backgroundTint="#1B2B3A"
                 android:enabled="false"
+                app:backgroundTint="@null"
                 android:text="💊 x0"
                 android:textColor="#FFFFFF"
                 android:textSize="12sp" />
@@ -198,6 +201,7 @@
                 android:background="@drawable/btn_mafia_final"
                 android:backgroundTint="#2D1B3A"
                 android:enabled="false"
+                app:backgroundTint="@null"
                 android:text="👁️ x0"
                 android:textColor="#FFFFFF"
                 android:textSize="12sp" />
@@ -211,6 +215,7 @@
             android:background="@drawable/btn_mafia_final"
             android:backgroundTint="#1A237E"
             android:letterSpacing="0.08"
+            app:backgroundTint="@null"
             android:text="🗳️ НАЧАТЬ ГОЛОСОВАНИЕ"
             android:textColor="@android:color/white"
             android:textSize="14sp"
@@ -224,6 +229,7 @@
             android:background="@drawable/btn_mafia_final"
             android:backgroundTint="@android:color/holo_orange_dark"
             android:enabled="false"
+            app:backgroundTint="@null"
             android:text="ПОДТВЕРДИТЬ"
             android:textColor="@android:color/white" />
         <!--  Premium: кнопка реанимации (видна только мёртвому Premium-игроку, 1 раз за игру)  -->
@@ -235,7 +241,8 @@
             android:background="@drawable/btn_mafia_final"
             android:backgroundTint="#4A0080"
             android:letterSpacing="0.06"
-            android:text="💫 РЕАНИМИРОВАТЬ (1 раз за игру)"
+            app:backgroundTint="@null"
+            android:text="Реанимировать (1 раз за игру)"
             android:textColor="@android:color/white"
             android:textSize="13sp"
             android:visibility="gone" />

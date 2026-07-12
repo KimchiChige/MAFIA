@@ -150,6 +150,12 @@ public final class MafiaDialogs {
 
     /**
      * Универсальный список игроков в виде карточек.
+     *
+     * ⚠️ ВАЖНО: клик вешается ПРЯМО на карточку (convertView.setOnClickListener),
+     * а НЕ на listView.setOnItemClickListener. У item_resurrect_player.xml
+     * стоит clickable="true" (нужно для state_pressed в фоне-селекторе) — а когда
+     * у item view есть clickable=true, ListView перестаёт получать onItemClick.
+     * Поэтому единственный надёжный способ — OnClickListener на самой карточке.
      */
     private static AlertDialog playerPicker(@NonNull final Activity activity,
                                             @NonNull final String currentUid,
@@ -186,6 +192,14 @@ public final class MafiaDialogs {
         final List<Player> items = new ArrayList<>(players);
         final boolean fMarkSelf = markSelf;
 
+        // Диалог объявляем до адаптера, чтобы OnClickListener карточки мог на него ссылаться.
+        final AlertDialog dialog = new AlertDialog.Builder(activity, R.style.MafiaDialog)
+                .setView(view)
+                .create();
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+        }
+
         ArrayAdapter<Player> adapter = new ArrayAdapter<Player>(activity, 0, items) {
             @NonNull @Override
             public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
@@ -193,7 +207,7 @@ public final class MafiaDialogs {
                     convertView = LayoutInflater.from(activity)
                             .inflate(R.layout.item_resurrect_player, parent, false);
                 }
-                Player p = getItem(position);
+                final Player p = getItem(position);
                 if (p == null) return convertView;
 
                 ImageView avatar = convertView.findViewById(R.id.resurrectPlayerAvatar);
@@ -219,18 +233,22 @@ public final class MafiaDialogs {
                     icon.setText("→");
                     convertView.setBackgroundResource(R.drawable.bg_resurrect_card);
                 }
+
+                // КЛИК ПРЯМО НА КАРТОЧКЕ — единственный надёжный способ,
+                // потому что у item view стоит clickable=true (нужно для pressed-фона).
+                convertView.setOnClickListener(v -> {
+                    dialog.dismiss();
+                    onPick.onPick(p);
+                });
+
                 return convertView;
             }
         };
         listView.setAdapter(adapter);
 
-        AlertDialog dialog = new AlertDialog.Builder(activity, R.style.MafiaDialog)
-                .setView(view)
-                .create();
-        if (dialog.getWindow() != null) {
-            dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
-        }
-
+        // На всякий случай оставляем и OnItemClickListener — он сработает,
+        // только если у item view НЕ clickable. В нашем случае карточка clickable,
+        // поэтому сработает OnClickListener выше. Это не повредит.
         listView.setOnItemClickListener((parent, v, position, id) -> {
             dialog.dismiss();
             onPick.onPick(items.get(position));

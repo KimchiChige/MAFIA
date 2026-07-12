@@ -628,14 +628,13 @@ public class GameActivity extends AppCompatActivity {
         if (playersList == null || playersList.isEmpty()) return;
 
         MafiaDialogs.revealTargets(this, currentUser.getUid(),
-                "🔮 Вы восстали! Кого назвать мафией?",
+                "Вас выкопали из гроба и провели ряд экспериментов, теперь вы живой зомби, и снова вправе играть! \n Обвините кого-то в мафии, это необязательно должно быть правдой...",
                 playersList,
                 player -> PremiumManager.revealAsMafia(db, roomId,
                         currentUser.getUid(), myName,
                         player.getId(), player.getName()));
     }
 
-    /** Всплывающее окно для ВСЕХ игроков при новом "разоблачении" от реанимированного. */
     private void showResurrectRevealDialog(String revealerName, String targetName) {
         MafiaDialogs.alert(this,
                 "💀 Реанимированный игрок говорит!",
