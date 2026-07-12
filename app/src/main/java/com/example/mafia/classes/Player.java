@@ -9,14 +9,13 @@ public class Player {
     private boolean isHost;
     private String photoUrl;
 
-    // ── Premium кастомизация (видна всем) ────────────────────────────────────
     private boolean isPremium;
-    private String cardBorderColor;   // hex, например "#FFD700"
-    private String avatarBadge;       // "crown"|"diamond"|"fire"|"skull"|"moon"
-    private String nicknameColor;     // hex цвет ника
-    private String cardBackground;    // hex ("#1A1A1A") ИЛИ "img:<base64>" для фото-фона
-    private int cardBgOpacity = 100; // 0..100, прозрачность фото-фона (по умолчанию непрозрачно)
-    private boolean resurrected;       // был реанимирован в этой игре
+    private String cardBorderColor;
+    private String avatarBadge;
+    private String nicknameColor;
+    private String cardBackground;
+    private int cardBgOpacity = 100;
+    private boolean resurrected;
 
     public Player() {
         this.isAlive = true;

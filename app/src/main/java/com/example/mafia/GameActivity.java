@@ -124,6 +124,7 @@ public class GameActivity extends AppCompatActivity {
     private boolean votingTimerStarted = false;
     private boolean dayTimerStarted = false;
     private String timerForStage = null;
+    private long phaseStartAt = 0; // таймстамп начала текущей фазы из Firestore
 
     // Самолечение: если активна плюшка самолечения, доктор может выбрать себя
     private boolean selfhealUnlocked = false;
@@ -433,6 +434,16 @@ public class GameActivity extends AppCompatActivity {
         Long day = (Long) data.get("dayNumber");
         Object vmObj = data.get("votingManagerId");
         votingManagerId = (vmObj instanceof String) ? (String) vmObj : null;
+
+        // Читаем серверный таймстамп начала фазы для корректного отсчёта таймера
+        Object psaObj = data.get("phaseStartAt");
+        if (psaObj instanceof Number) {
+            phaseStartAt = ((Number) psaObj).longValue();
+        } else if (psaObj instanceof com.google.firebase.Timestamp) {
+            phaseStartAt = ((com.google.firebase.Timestamp) psaObj).getSeconds() * 1000;
+        } else {
+            phaseStartAt = 0;
+        }
 
         if (newPhase != null && !newPhase.equals(currentPhase)) {
             resetPhaseState();
@@ -1043,12 +1054,35 @@ public class GameActivity extends AppCompatActivity {
     // Таймеры
     // ─────────────────────────────────────────────────────────────
 
+    /**
+     * Вычисляет оставшееся время на основе серверного phaseStartAt.
+     * Если phaseStartAt отсутствует (старая игра) — возвращает полную длительность.
+     */
+    private int getRemainingSeconds(int totalSeconds) {
+        if (phaseStartAt > 0) {
+            long elapsed = (System.currentTimeMillis() - phaseStartAt) / 1000;
+            int remaining = totalSeconds - (int) elapsed;
+            return Math.max(0, remaining);
+        }
+        return totalSeconds;
+    }
+
     private void startPhaseTimerOnce(int seconds) {
         if (phaseTimer != null && nightStage.equals(timerForStage)) return;
         timerForStage = nightStage;
         cancelTimer();
+
+        int remainingSeconds = getRemainingSeconds(seconds);
         final String stageAtStart = nightStage;
-        phaseTimer = new CountDownTimer((long) seconds * 1000, 1000) {
+
+        if (remainingSeconds <= 0) {
+            // Время уже вышло — сразу завершаем стадию
+            timerText.setText("Время вышло!");
+            GameTransactions.forceAdvanceNightStage(db, roomId, stageAtStart, null);
+            return;
+        }
+
+        phaseTimer = new CountDownTimer((long) remainingSeconds * 1000, 1000) {
             @Override
             public void onTick(long ms) {
                 timerText.setText("Осталось: " + ms / 1000 + "с");
@@ -1066,7 +1100,16 @@ public class GameActivity extends AppCompatActivity {
         if (votingTimerStarted) return;
         votingTimerStarted = true;
         cancelTimer();
-        phaseTimer = new CountDownTimer((long) seconds * 1000, 1000) {
+
+        int remainingSeconds = getRemainingSeconds(seconds);
+
+        if (remainingSeconds <= 0) {
+            timerText.setText("Время вышло!");
+            GameTransactions.forceResolveVoting(db, roomId, null);
+            return;
+        }
+
+        phaseTimer = new CountDownTimer((long) remainingSeconds * 1000, 1000) {
             @Override
             public void onTick(long ms) {
                 timerText.setText("Осталось: " + ms / 1000 + "с");
@@ -1084,7 +1127,16 @@ public class GameActivity extends AppCompatActivity {
         if (dayTimerStarted) return;
         dayTimerStarted = true;
         cancelTimer();
-        phaseTimer = new CountDownTimer((long) seconds * 1000, 1000) {
+
+        int remainingSeconds = getRemainingSeconds(seconds);
+
+        if (remainingSeconds <= 0) {
+            timerText.setText("");
+            GameTransactions.forceStartVoting(db, roomId, null);
+            return;
+        }
+
+        phaseTimer = new CountDownTimer((long) remainingSeconds * 1000, 1000) {
             @Override
             public void onTick(long ms) {
                 timerText.setText("Голосование через: " + ms / 1000 + "с");

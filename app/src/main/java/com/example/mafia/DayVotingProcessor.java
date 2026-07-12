@@ -108,6 +108,7 @@ public class DayVotingProcessor {
             updates.put("phase", "night");
             updates.put("nightStage", "mafia");
             updates.put("dayNumber", currentDayNumber + 1);
+            updates.put("phaseStartAt", System.currentTimeMillis());
         }
 
         Map<String, Object> voteResultData = new HashMap<>();

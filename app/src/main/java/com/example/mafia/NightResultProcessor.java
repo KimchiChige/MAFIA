@@ -167,6 +167,7 @@ public class NightResultProcessor {
         } else {
             updates.put("phase",     "day");
             updates.put("dayNumber", currentDayNumber + 1);
+            updates.put("phaseStartAt", System.currentTimeMillis());
         }
 
         // Очистка ночных действий

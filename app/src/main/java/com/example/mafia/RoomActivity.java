@@ -572,6 +572,7 @@ public class RoomActivity extends AppCompatActivity {
         gameData.put("nightActions", nightActions);
 
         gameData.put("createdAt", com.google.firebase.Timestamp.now());
+        gameData.put("phaseStartAt", System.currentTimeMillis());
         gameData.put("votingManagerId", currentUser.getUid());
 
         db.collection("games").document(roomId)

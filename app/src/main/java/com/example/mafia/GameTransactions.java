@@ -65,6 +65,7 @@ public class GameTransactions {
                     String next = nextLivingStage(players, stage);
                     if (next != null) {
                         writeNow.put("nightStage", next);
+                        writeNow.put("phaseStartAt", System.currentTimeMillis());
                         transaction.update(docRef, writeNow);
                         return null;
                     }
@@ -137,7 +138,9 @@ public class GameTransactions {
 
                     String next = nextLivingStage(players, stage);
                     if (next != null) {
-                        transaction.update(docRef, "nightStage", next);
+                        transaction.update(docRef,
+                                "nightStage", next,
+                                "phaseStartAt", System.currentTimeMillis());
                         return null;
                     }
 
@@ -182,7 +185,9 @@ public class GameTransactions {
                     if (!snap.exists()) return null;
                     Map<String, Object> data = toMap(snap.getData());
                     if (!"day".equals(data.get("phase"))) return null;
-                    transaction.update(docRef, "phase", "voting");
+                    transaction.update(docRef,
+                            "phase", "voting",
+                            "phaseStartAt", System.currentTimeMillis());
                     return null;
                 }).addOnSuccessListener(v -> { if (cb != null) cb.onSuccess(); })
                 .addOnFailureListener(e -> { if (cb != null) cb.onError(e); });
